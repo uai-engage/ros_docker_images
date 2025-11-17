@@ -51,10 +51,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Create a non-root user with sudo privileges
-RUN groupadd --gid $USER_GID $USERNAME \
-    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
-    && apt-get update \
+# Handle case where GID/UID already exists in base image (e.g., ubuntu user)
+RUN apt-get update \
     && apt-get install -y sudo \
+    && if getent passwd $USER_UID > /dev/null 2>&1; then \
+         userdel -f $(getent passwd $USER_UID | cut -d: -f1); \
+       fi \
+    && if getent group $USER_GID > /dev/null 2>&1; then \
+         groupmod -n $USERNAME $(getent group $USER_GID | cut -d: -f1); \
+       else \
+         groupadd --gid $USER_GID $USERNAME; \
+       fi \
+    && useradd --no-log-init --uid $USER_UID --gid $USER_GID -m -s /bin/bash $USERNAME \
     && echo "$USERNAME ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/$USERNAME \
     && chmod 0440 /etc/sudoers.d/$USERNAME \
     && rm -rf /var/lib/apt/lists/*
