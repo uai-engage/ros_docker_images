@@ -17,6 +17,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-jazzy-ros-gz-bridge \
     ros-jazzy-ros-gz-image \
     ros-jazzy-ros-gz-interfaces \
+    # MAVROS2 for ArduPilot communication
+    ros-jazzy-mavros \
+    ros-jazzy-mavros-extras \
     # XFCE Desktop Environment (full)
     xfce4 \
     xfce4-goodies \
@@ -78,6 +81,9 @@ RUN apt-get update \
 
 # Add user to video group
 RUN usermod -aG video $USERNAME 2>/dev/null || true
+
+# Install MAVROS geographiclib datasets (required for GPS)
+RUN /opt/ros/jazzy/lib/mavros/install_geographiclib_datasets.sh || true
 
 # Set up ROS 2 environment
 RUN echo "source /opt/ros/jazzy/setup.bash" >> /home/$USERNAME/.bashrc \
