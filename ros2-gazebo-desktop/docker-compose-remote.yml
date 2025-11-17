@@ -1,0 +1,72 @@
+version: '3.8'
+
+# Docker Compose for Remote Ubuntu Server Deployment
+# Use this when running on a remote server and displaying on Windows host
+
+services:
+  ros2-gazebo:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        USERNAME: ${USERNAME:-rosuser}
+        USER_UID: ${USER_UID:-1000}
+        USER_GID: ${USER_GID:-1000}
+    image: ros2-gazebo-desktop:jazzy-noble
+    container_name: ${CONTAINER_NAME:-ros2_gazebo_remote}
+
+    stdin_open: true
+    tty: true
+
+    environment:
+      # DISPLAY points to your Windows host IP
+      # Example: DISPLAY=192.168.1.100:0.0
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+      - NO_AT_BRIDGE=1
+      - LIBGL_ALWAYS_INDIRECT=0
+      # Force software rendering if GPU issues
+      # - LIBGL_ALWAYS_SOFTWARE=1
+      - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}
+      - RMW_IMPLEMENTATION=${RMW_IMPLEMENTATION:-rmw_cyclonedds_cpp}
+      - GZ_SIM_RESOURCE_PATH=${GZ_SIM_RESOURCE_PATH:-/home/rosuser/ros2_ws/src/models}
+      - GZ_PARTITION=${GZ_PARTITION:-gazebo}
+      - GZ_IP=${GZ_IP:-127.0.0.1}
+
+    volumes:
+      # Mount workspace from Ubuntu server
+      - ${HOST_WORKSPACE:-./ros2_ws}:/home/${USERNAME:-rosuser}/ros2_ws:rw
+      # X11 socket (for SSH forwarding)
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      # Xauthority for SSH X11 forwarding
+      - ${HOME}/.Xauthority:/home/${USERNAME:-rosuser}/.Xauthority:ro
+      # Shared memory for performance
+      - /dev/shm:/dev/shm
+
+    # Host network for ROS 2 discovery and X11
+    network_mode: ${NETWORK_MODE:-host}
+
+    # GPU access if available
+    devices:
+      - /dev/dri:/dev/dri
+
+    privileged: false
+
+    security_opt:
+      - seccomp:unconfined
+
+    ipc: host
+
+    # Increase shared memory for Gazebo
+    shm_size: '2gb'
+
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          memory: 4G
+
+    working_dir: /home/${USERNAME:-rosuser}/ros2_ws
+
+    command: bash
