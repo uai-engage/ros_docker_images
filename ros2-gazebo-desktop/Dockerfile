@@ -22,7 +22,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # X11 and GUI support
     x11-apps \
     mesa-utils \
-    libgl1-mesa-glx \
+    libgl1 \
+    libegl1 \
     libgl1-mesa-dri \
     libxcb-xinerama0 \
     libxcb-icccm4 \
