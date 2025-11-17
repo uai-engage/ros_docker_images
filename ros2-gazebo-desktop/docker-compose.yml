@@ -5,12 +5,12 @@ services:
   ros2-gazebo-vnc:
     build:
       context: .
-      dockerfile: Dockerfile.vnc-xfce
+      dockerfile: Dockerfile
       args:
         USERNAME: ${USERNAME:-rosuser}
         USER_UID: ${USER_UID:-1000}
         USER_GID: ${USER_GID:-1000}
-    image: ros2-gazebo-desktop:jazzy-vnc-xfce
+    image: ros2-gazebo-desktop:jazzy-vnc
     container_name: ${CONTAINER_NAME:-ros2_gazebo_vnc}
 
     stdin_open: true
