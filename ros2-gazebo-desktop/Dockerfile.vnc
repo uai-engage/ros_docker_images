@@ -1,0 +1,108 @@
+# ROS 2 Jazzy Desktop with VNC for Remote Access
+# Better performance than X11 forwarding
+
+FROM osrf/ros:jazzy-desktop-full-noble
+
+ARG USERNAME=rosuser
+ARG USER_UID=1000
+ARG USER_GID=1000
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install Gazebo, GUI deps, and VNC server
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Gazebo Harmonic packages
+    ros-jazzy-ros-gz \
+    ros-jazzy-ros-gz-sim \
+    ros-jazzy-ros-gz-bridge \
+    ros-jazzy-ros-gz-image \
+    ros-jazzy-ros-gz-interfaces \
+    # VNC and desktop environment
+    tigervnc-standalone-server \
+    tigervnc-common \
+    tigervnc-tools \
+    novnc \
+    websockify \
+    # Lightweight desktop
+    openbox \
+    obconf \
+    xfce4-terminal \
+    tint2 \
+    pcmanfm \
+    # X11 and rendering
+    x11-apps \
+    mesa-utils \
+    libgl1 \
+    libegl1 \
+    libgl1-mesa-dri \
+    # Development tools
+    python3-pip \
+    python3-argcomplete \
+    git \
+    wget \
+    curl \
+    vim \
+    nano \
+    htop \
+    net-tools \
+    dbus-x11 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create user
+RUN apt-get update \
+    && apt-get install -y sudo \
+    && if getent passwd $USER_UID > /dev/null 2>&1; then \
+         userdel -f $(getent passwd $USER_UID | cut -d: -f1); \
+       fi \
+    && if getent group $USER_GID > /dev/null 2>&1; then \
+         groupmod -n $USERNAME $(getent group $USER_GID | cut -d: -f1); \
+       else \
+         groupadd --gid $USER_GID $USERNAME; \
+       fi \
+    && useradd --no-log-init --uid $USER_UID --gid $USER_GID -m -s /bin/bash $USERNAME \
+    && echo "$USERNAME ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/$USERNAME \
+    && chmod 0440 /etc/sudoers.d/$USERNAME \
+    && rm -rf /var/lib/apt/lists/*
+
+# Add user to video group
+RUN usermod -aG video $USERNAME 2>/dev/null || true
+
+# Set up ROS 2 environment
+RUN echo "source /opt/ros/jazzy/setup.bash" >> /home/$USERNAME/.bashrc \
+    && echo "export ROS_DOMAIN_ID=0" >> /home/$USERNAME/.bashrc \
+    && echo "export RMW_IMPLEMENTATION=rmw_fastrtps_cpp" >> /home/$USERNAME/.bashrc \
+    && echo "export XDG_RUNTIME_DIR=/tmp/runtime-\$USER" >> /home/$USERNAME/.bashrc \
+    && mkdir -p /tmp/runtime-$USERNAME \
+    && chown $USERNAME:$USERNAME /tmp/runtime-$USERNAME \
+    && chmod 700 /tmp/runtime-$USERNAME
+
+# Create workspace
+RUN mkdir -p /home/$USERNAME/ros2_ws/src \
+    && chown -R $USERNAME:$USERNAME /home/$USERNAME/ros2_ws
+
+# Setup VNC
+RUN mkdir -p /home/$USERNAME/.vnc /home/$USERNAME/.config/openbox \
+    && chown -R $USERNAME:$USERNAME /home/$USERNAME/.vnc /home/$USERNAME/.config
+
+# Openbox autostart for GUI apps
+RUN echo '#!/bin/bash\ntint2 &\nxfce4-terminal &' > /home/$USERNAME/.config/openbox/autostart \
+    && chmod +x /home/$USERNAME/.config/openbox/autostart \
+    && chown $USERNAME:$USERNAME /home/$USERNAME/.config/openbox/autostart
+
+# VNC startup script
+COPY --chown=$USERNAME:$USERNAME startup-vnc.sh /startup-vnc.sh
+RUN chmod +x /startup-vnc.sh
+
+WORKDIR /home/$USERNAME/ros2_ws
+
+USER $USERNAME
+
+ENV USER=$USERNAME
+ENV HOME=/home/$USERNAME
+ENV ROS_DISTRO=jazzy
+ENV SHELL=/bin/bash
+ENV DISPLAY=:1
+
+EXPOSE 5901 6080
+
+CMD ["/startup-vnc.sh"]
