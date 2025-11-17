@@ -1,68 +1,47 @@
+# Docker Compose for VNC with XFCE Desktop and Host Network
+# Full desktop GUI + ROS 2 communication with external nodes
+
 services:
-  ros2-gazebo:
+  ros2-gazebo-vnc:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.vnc-xfce
       args:
         USERNAME: ${USERNAME:-rosuser}
         USER_UID: ${USER_UID:-1000}
         USER_GID: ${USER_GID:-1000}
-    image: ros2-gazebo-desktop:jazzy-noble
-    container_name: ${CONTAINER_NAME:-ros2_gazebo_desktop}
+    image: ros2-gazebo-desktop:jazzy-vnc-xfce
+    container_name: ${CONTAINER_NAME:-ros2_gazebo_vnc}
 
-    # Interactive mode for development
     stdin_open: true
     tty: true
 
-    # Environment variables
     environment:
-      - DISPLAY=${DISPLAY:-host.docker.internal:0.0}
-      - QT_X11_NO_MITSHM=1
-      - NO_AT_BRIDGE=1
-      - XDG_RUNTIME_DIR=/tmp/runtime-${USERNAME:-rosuser}
+      - VNC_PASSWORD=${VNC_PASSWORD:-rospassword}
+      - VNC_RESOLUTION=${VNC_RESOLUTION:-1920x1080}
+      - VNC_DEPTH=${VNC_DEPTH:-24}
       - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}
       - RMW_IMPLEMENTATION=${RMW_IMPLEMENTATION:-rmw_fastrtps_cpp}
       - GZ_SIM_RESOURCE_PATH=${GZ_SIM_RESOURCE_PATH:-/home/rosuser/ros2_ws/src/models}
       - GZ_PARTITION=${GZ_PARTITION:-gazebo}
-      - GZ_IP=${GZ_IP:-127.0.0.1}
-      - LIBGL_ALWAYS_INDIRECT=0
+      - XDG_RUNTIME_DIR=/tmp/runtime-${USERNAME:-rosuser}
+      # Software rendering for non-GPU servers
+      - LIBGL_ALWAYS_SOFTWARE=1
+      # Fast DDS discovery configuration
+      - FASTRTPS_DEFAULT_PROFILES_FILE=/home/${USERNAME:-rosuser}/.ros/fastdds.xml
 
-    # Add user to host's video and render groups for GPU access
-    group_add:
-      - video
-      - render
-
-    # Volume mounts
     volumes:
-      # Mount X11 socket for GUI (Linux/WSL2)
-      - /tmp/.X11-unix:/tmp/.X11-unix:rw
-      # Mount workspace from host for persistent development
       - ${HOST_WORKSPACE:-./ros2_ws}:/home/${USERNAME:-rosuser}/ros2_ws:rw
-      # Mount Xauthority for X11 authentication (optional)
-      - ${XAUTHORITY:-~/.Xauthority}:/home/${USERNAME:-rosuser}/.Xauthority:ro
-      # Shared memory for better performance
       - /dev/shm:/dev/shm
 
-    # Network configuration
-    # Using host network for ROS 2 DDS discovery
-    network_mode: ${NETWORK_MODE:-host}
+    # HOST NETWORK - Required for ROS 2 DDS discovery with external nodes
+    # Ports are directly accessible (5901 for VNC, 6080 for noVNC)
+    network_mode: host
 
-    # Device access
-    devices:
-      # Allow access to GPU devices (if available)
-      - /dev/dri:/dev/dri
+    shm_size: '2gb'
 
-    # Privileged mode for hardware access (disable if not needed)
-    privileged: false
-
-    # Security options for X11
-    security_opt:
-      - seccomp:unconfined
-
-    # IPC mode for shared memory
     ipc: host
 
-    # Resource limits (adjust based on your system)
     deploy:
       resources:
         limits:
@@ -70,26 +49,6 @@ services:
         reservations:
           memory: 4G
 
-    # Working directory
     working_dir: /home/${USERNAME:-rosuser}/ros2_ws
 
-    # Default command
-    command: bash
-
-  # Optional: ROS 2 Gazebo with NVIDIA GPU support
-  # Uncomment this service if you have NVIDIA GPU and nvidia-container-toolkit installed
-  # ros2-gazebo-gpu:
-  #   extends:
-  #     service: ros2-gazebo
-  #   container_name: ros2_gazebo_desktop_gpu
-  #   environment:
-  #     - NVIDIA_VISIBLE_DEVICES=all
-  #     - NVIDIA_DRIVER_CAPABILITIES=all
-  #   runtime: nvidia
-  #   deploy:
-  #     resources:
-  #       reservations:
-  #         devices:
-  #           - driver: nvidia
-  #             count: all
-  #             capabilities: [gpu]
+    command: /startup-vnc.sh

@@ -1,119 +1,266 @@
-# ROS 2 Jazzy Desktop with Gazebo for Windows
+# ROS 2 Jazzy Desktop with Gazebo (VNC)
 
-This setup provides a complete ROS 2 Jazzy (Ubuntu 24.04 Noble) development environment with Gazebo Harmonic simulation, configured to display GUI applications on a Windows host.
+Complete Docker setup for ROS 2 Jazzy (Ubuntu 24.04) with Gazebo Harmonic simulation, featuring:
+- **Full XFCE Desktop Environment** via VNC
+- **Host Network Mode** for ROS 2 DDS communication with external nodes
+- **Fast DDS** (rmw_fastrtps_cpp) for ROS 2 middleware
+- **Web Browser Access** via noVNC (no client software needed)
 
 ## Features
 
-- ROS 2 Jazzy (Latest LTS-like release)
-- Ubuntu 24.04 Noble base
-- Gazebo Harmonic (compatible with ROS 2 Jazzy)
-- Full ROS 2 Desktop installation (RViz2, RQt, etc.)
-- X11 forwarding for GUI applications
-- Non-root user with sudo privileges
-- Persistent workspace mounting
+- ROS 2 Jazzy Desktop Full
+- Gazebo Harmonic (ros-gz packages)
+- XFCE Desktop with pre-configured shortcuts
+- VNC + noVNC for remote GUI access
+- Host network for ROS 2 node discovery
+- Desktop shortcuts for Gazebo, RViz2, RQt
 
-## Prerequisites
-
-### On Windows Host
-
-1. **Docker Desktop for Windows** (with WSL2 backend)
-   - Download from: https://www.docker.com/products/docker-desktop/
-   - Enable WSL2 integration in Docker Desktop settings
-
-2. **X Server for Windows** (Choose one):
-
-   #### Option A: VcXsrv (Free, Recommended)
-   1. Download from: https://sourceforge.net/projects/vcxsrv/
-   2. Install and launch XLaunch
-   3. Configuration:
-      - Multiple windows
-      - Display number: 0
-      - Start no client
-      - **Important**: Check "Disable access control"
-      - Save configuration for future use
-
-   #### Option B: X410 (Paid, from Microsoft Store)
-   1. Install from Microsoft Store
-   2. Enable "Allow Public Access" in settings
-
-   #### Option C: WSLg (Windows 11 with WSL2)
-   - If using Windows 11 with recent WSL2, GUI support is built-in
-   - No additional X server needed
-
-3. **Windows Firewall Configuration**
-   - Allow VcXsrv/X410 through Windows Firewall
-   - Both private and public networks
+---
 
 ## Quick Start
 
-### 1. Clone and Navigate
+### 1. Configure Environment
 
-```powershell
+```bash
 cd ros2-gazebo-desktop
+
+# Copy and customize configuration
+cp .env.vnc .env
+
+# Edit settings (change VNC password!)
+nano .env
 ```
 
-### 2. Configure Environment
-
-Edit the `.env` file to match your setup:
+### 2. Build the Docker Image
 
 ```bash
-# Get your Windows IP address (run in PowerShell):
-ipconfig
-
-# Update .env file with your IP:
-DISPLAY=<YOUR_WINDOWS_IP>:0.0
-# Example: DISPLAY=192.168.1.100:0.0
-
-# For WSLg (Windows 11):
-DISPLAY=:0
+docker compose build
 ```
 
-### 3. Create Local Workspace
+This may take 10-15 minutes on first build.
 
-```powershell
-mkdir ros2_ws\src
-```
-
-### 4. Build the Docker Image
-
-```powershell
-docker-compose build
-```
-
-### 5. Start the Container
-
-```powershell
-docker-compose up -d
-```
-
-### 6. Connect to Container
-
-```powershell
-docker exec -it ros2_gazebo_desktop bash
-```
-
-## Usage
-
-### Testing X11 Connection
-
-Inside the container:
+### 3. Start the Container
 
 ```bash
-# Test X11 with simple app
-xeyes
-
-# Test OpenGL
-glxgears
+docker compose up -d
 ```
+
+### 4. Connect to VNC
+
+**Option A: Web Browser (Easiest)**
+```
+http://<your-server-ip>:6080/vnc.html
+```
+- Click "Connect"
+- Enter password: `rospassword` (or your custom password)
+
+**Option B: VNC Client**
+- Download: TightVNC, RealVNC, or TigerVNC Viewer
+- Connect to: `<your-server-ip>:5901`
+- Password: `rospassword`
+
+### 5. Use ROS 2 and Gazebo
+
+Inside the VNC desktop:
+1. Double-click **Terminal** shortcut on desktop, or right-click → Applications → Terminal
+2. ROS 2 is automatically sourced. Run:
+```bash
+gz sim shapes.sdf
+```
+
+Or use the desktop shortcuts:
+- **Gazebo** - Launch Gazebo simulator
+- **RViz2** - Launch RViz visualization
+- **RQt** - Launch RQt tools
+
+---
+
+## Configuration
+
+### Environment Variables (`.env.vnc` → copy to `.env`)
+
+| Variable | Description | Default | Example |
+|----------|-------------|---------|---------|
+| `VNC_PASSWORD` | VNC connection password | `rospassword` | `mySecurePass123` |
+| `VNC_RESOLUTION` | Screen resolution | `1920x1080` | `1680x1050` |
+| `VNC_DEPTH` | Color depth (16, 24, 32) | `24` | `24` |
+| `USERNAME` | Container username | `rosuser` | `developer` |
+| `USER_UID` | User ID | `1000` | `1000` |
+| `USER_GID` | Group ID | `1000` | `1000` |
+| `ROS_DOMAIN_ID` | ROS 2 domain isolation | `0` | `42` |
+| `RMW_IMPLEMENTATION` | DDS implementation | `rmw_fastrtps_cpp` | `rmw_cyclonedds_cpp` |
+| `HOST_WORKSPACE` | Workspace mount path | `./ros2_ws` | `/home/user/my_ws` |
+| `CONTAINER_NAME` | Docker container name | `ros2_gazebo_vnc` | `my_ros_vnc` |
+
+### Recommended Resolutions
+
+| Resolution | Use Case |
+|------------|----------|
+| `1920x1080` | Full HD, large displays |
+| `1680x1050` | Balanced size |
+| `1440x900` | Medium displays |
+| `1280x720` | Lower bandwidth/smaller displays |
+| `2560x1440` | High DPI / 4K monitors |
+
+---
+
+## Docker Compose Configuration
+
+### `docker-compose.yml` Structure
+
+```yaml
+services:
+  ros2-gazebo-vnc:
+    build:
+      context: .
+      dockerfile: Dockerfile        # XFCE Desktop + VNC
+
+    environment:
+      - VNC_PASSWORD=${VNC_PASSWORD}     # From .env file
+      - VNC_RESOLUTION=${VNC_RESOLUTION}
+      - RMW_IMPLEMENTATION=${RMW_IMPLEMENTATION}
+      - ROS_DOMAIN_ID=${ROS_DOMAIN_ID}
+      # ... other env vars
+
+    network_mode: host    # Essential for ROS 2 DDS discovery
+    # With host network, ports are directly accessible:
+    # 5901 - VNC server, 6080 - noVNC web
+
+    volumes:
+      - ${HOST_WORKSPACE}:/home/rosuser/ros2_ws:rw
+      - /dev/shm:/dev/shm
+
+    command: /startup-vnc.sh   # Starts VNC server
+```
+
+### Key Components
+
+1. **Dockerfile**: Builds image with XFCE desktop and VNC server
+2. **startup-vnc.sh**: Initializes VNC server and noVNC proxy
+3. **XFCE**: Full desktop environment with file manager, browser, etc.
+4. **noVNC**: Web-based VNC client (no client software needed)
+5. **Host Network**: Enables ROS 2 DDS discovery with external nodes
+
+---
+
+## Detailed Setup Steps
+
+### Step 1: Prepare Workspace
+
+```bash
+# On your Ubuntu server
+cd /path/to/ros_docker_images/ros2-gazebo-desktop
+
+# Create ROS 2 workspace directory
+mkdir -p ros2_ws/src
+
+# Copy environment template
+cp .env.vnc .env
+```
+
+### Step 2: Customize Configuration
+
+Edit `.env` file:
+
+```bash
+# Change VNC password (IMPORTANT for security!)
+VNC_PASSWORD=YourSecurePassword123
+
+# Adjust resolution if needed
+VNC_RESOLUTION=1920x1080
+
+# Set ROS 2 domain (optional, for multi-robot setups)
+ROS_DOMAIN_ID=0
+```
+
+### Step 3: Build Docker Image
+
+```bash
+# Build with no cache (clean build)
+docker compose build --no-cache
+
+# Or quick rebuild
+docker compose build
+```
+
+**Build includes:**
+- ROS 2 Jazzy Desktop Full
+- Gazebo Harmonic
+- TigerVNC Server
+- noVNC (web interface)
+- Openbox window manager
+- Development tools
+
+### Step 4: Start Container
+
+```bash
+# Start in background
+docker compose up -d
+
+# View logs
+docker compose logs -f
+
+# You should see:
+# ============================================
+# VNC Server started!
+# Connect via:
+#   - VNC Client: <server-ip>:5901
+#   - Web Browser: http://<server-ip>:6080/vnc.html
+# ============================================
+```
+
+### Step 5: Connect from Windows
+
+#### Option A: Web Browser (No Software Required)
+
+1. Open your web browser (Chrome, Firefox, Edge)
+2. Navigate to: `http://<ubuntu-server-ip>:6080/vnc.html`
+3. Click "Connect"
+4. Enter password when prompted
+5. You'll see the Openbox desktop
+
+#### Option B: VNC Client (Better Performance)
+
+1. Download a VNC client:
+   - [TightVNC Viewer](https://www.tightvnc.com/download.php) (Free)
+   - [RealVNC Viewer](https://www.realvnc.com/en/connect/download/viewer/) (Free)
+   - [TigerVNC Viewer](https://tigervnc.org/)
+
+2. Connect:
+   - Server: `<ubuntu-server-ip>:5901`
+   - Or: `<ubuntu-server-ip>::5901`
+   - Password: Your configured password
+
+3. Adjust client settings:
+   - Quality: High/Ultra
+   - Encoding: Tight or ZRLE
+   - Compression: 6-9
+
+---
+
+## Using ROS 2 and Gazebo in VNC
+
+### Opening Applications
+
+**Right-click on desktop** to see menu:
+- **Terminal**: Open xfce4-terminal
+- **File Manager**: PCManFM file browser
+- **Window Options**: Move, resize, close
 
 ### Running Gazebo
 
 ```bash
-# Launch Gazebo with empty world
-gz sim
+# Open terminal (right-click → Terminal)
+# Or use existing terminal window
 
-# Launch Gazebo with a specific world
+# Source ROS 2 (already in .bashrc)
+source /opt/ros/jazzy/setup.bash
+
+# Launch Gazebo with example world
 gz sim shapes.sdf
+
+# Launch with specific world
+gz sim /opt/ros/jazzy/share/ros_gz_sim/worlds/empty.sdf
 
 # Launch via ROS 2
 ros2 launch ros_gz_sim gz_sim.launch.py gz_args:="shapes.sdf"
@@ -122,163 +269,376 @@ ros2 launch ros_gz_sim gz_sim.launch.py gz_args:="shapes.sdf"
 ### Running RViz2
 
 ```bash
+source /opt/ros/jazzy/setup.bash
 ros2 run rviz2 rviz2
 ```
 
 ### Running RQt
 
 ```bash
+source /opt/ros/jazzy/setup.bash
 rqt
 ```
 
-### Example: TurtleSim
+### TurtleSim Example
 
 ```bash
-# In terminal 1
+# Terminal 1
 ros2 run turtlesim turtlesim_node
 
-# In terminal 2
+# Terminal 2
 ros2 run turtlesim turtle_teleop_key
-```
-
-## Configuration Details
-
-### Environment Variables (`.env`)
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `DISPLAY` | X11 display for GUI | `host.docker.internal:0.0` |
-| `USER_UID` | User ID (match host for permissions) | `1000` |
-| `USER_GID` | Group ID | `1000` |
-| `USERNAME` | Container username | `rosuser` |
-| `ROS_DOMAIN_ID` | ROS 2 domain for isolation | `0` |
-| `HOST_WORKSPACE` | Path to workspace on host | `./ros2_ws` |
-| `NETWORK_MODE` | Docker network mode | `host` |
-
-### Volume Mounts
-
-- **Workspace**: Your local `ros2_ws` is mounted for persistent development
-- **X11 Socket**: Enables GUI forwarding
-- **Shared Memory**: `/dev/shm` for better performance
-
-## Troubleshooting
-
-### GUI Not Displaying
-
-1. **Check X Server is running** on Windows
-2. **Verify DISPLAY variable**:
-   ```bash
-   echo $DISPLAY
-   ```
-3. **Check firewall** allows X server connections
-4. **Test connectivity**:
-   ```bash
-   xdpyinfo
-   ```
-
-### Permission Denied Errors
-
-Match `USER_UID` and `USER_GID` in `.env` with your host user:
-```bash
-# On Linux/WSL:
-id -u  # for UID
-id -g  # for GID
-```
-
-### Gazebo Performance Issues
-
-1. **Enable GPU passthrough** (if NVIDIA):
-   - Uncomment the GPU service in `docker-compose.yml`
-   - Install `nvidia-container-toolkit`
-
-2. **Increase shared memory**:
-   ```yaml
-   shm_size: '2gb'
-   ```
-
-3. **Use software rendering**:
-   ```bash
-   export LIBGL_ALWAYS_SOFTWARE=1
-   gz sim
-   ```
-
-### ROS 2 Discovery Issues
-
-When using bridge network mode instead of host:
-```bash
-# Ensure all containers use same ROS_DOMAIN_ID
-export ROS_DOMAIN_ID=0
-
-# Check multicast (in container)
-ros2 daemon stop
-ros2 daemon start
-```
-
-## Advanced Usage
-
-### Building ROS 2 Packages
-
-```bash
-# Inside container, in workspace
-cd ~/ros2_ws
-colcon build --symlink-install
-
-# Source the workspace
-source install/setup.bash
 ```
 
 ### Multiple Terminals
 
-```powershell
-# Open additional terminals
-docker exec -it ros2_gazebo_desktop bash
-```
-
-Or use `tmux`/`terminator` inside the container:
+Right-click → Terminal to open new windows, or use:
 ```bash
-terminator
+xfce4-terminal --tab  # New tab
+xfce4-terminal &      # New window
 ```
 
-### Custom Gazebo Models
+---
 
-1. Place models in `ros2_ws/src/models/`
-2. They're automatically available via `GZ_SIM_RESOURCE_PATH`
+## Advanced Configuration
 
-### Running Specific ROS 2 Commands
+### Custom VNC Password
 
-```powershell
-docker exec ros2_gazebo_desktop ros2 topic list
-docker exec ros2_gazebo_desktop ros2 node list
+```bash
+# In .env file
+VNC_PASSWORD=MySecurePassword123!
+
+# Restart container to apply
+docker compose down
+docker compose up -d
 ```
 
-## Stopping and Cleanup
+### Change Resolution on the Fly
 
-```powershell
-# Stop container
-docker-compose down
+```bash
+# Inside container
+docker exec -it ros2_gazebo_vnc bash
 
-# Remove image
-docker rmi ros2-gazebo-desktop:jazzy-noble
+# Change resolution
+xrandr --size 1680x1050
 
-# Clean up volumes
-docker volume prune
+# Or restart with new resolution
+# Edit .env, then:
+docker compose down
+docker compose up -d
 ```
 
-## Security Notes
+### Custom Port Mapping
 
-- Container runs with non-root user
-- X11 forwarding requires disabling access control (use in trusted networks)
-- Host network mode exposes all container ports
-- Consider using bridge network with specific port mappings for production
+Edit `docker-compose.yml`:
 
-## Resources
+```yaml
+ports:
+  - "5902:5901"    # VNC on 5902
+  - "8080:6080"    # noVNC on 8080
+```
 
-- [ROS 2 Jazzy Documentation](https://docs.ros.org/en/jazzy/)
-- [Gazebo Harmonic Documentation](https://gazebosim.org/docs/harmonic/)
-- [ROS 2 and Gazebo Integration](https://github.com/gazebosim/ros_gz)
-- [Docker Desktop for Windows](https://docs.docker.com/desktop/windows/)
-- [VcXsrv Tutorial](https://sourceforge.net/p/vcxsrv/wiki/Home/)
+Then connect to:
+- VNC: `server:5902`
+- Web: `http://server:8080/vnc.html`
 
-## License
+### Persist VNC Configuration
 
-This configuration is provided as-is for development purposes.
+```bash
+# Mount VNC config directory
+volumes:
+  - ./vnc_config:/home/rosuser/.vnc
+```
+
+### GPU Support (NVIDIA)
+
+If your server has an NVIDIA GPU:
+
+1. Install nvidia-container-toolkit
+2. Modify `docker-compose.yml`:
+
+```yaml
+environment:
+  - NVIDIA_VISIBLE_DEVICES=all
+  - NVIDIA_DRIVER_CAPABILITIES=graphics
+  # Remove: LIBGL_ALWAYS_SOFTWARE=1
+
+deploy:
+  resources:
+    reservations:
+      devices:
+        - driver: nvidia
+          count: all
+          capabilities: [gpu]
+```
+
+---
+
+## Container Management
+
+### Start/Stop Commands
+
+```bash
+# Start
+docker compose up -d
+
+# Stop
+docker compose down
+
+# Restart
+docker compose restart
+
+# View status
+docker compose ps
+
+# View logs
+docker compose logs -f
+```
+
+### Access Container Shell
+
+```bash
+# Interactive bash session
+docker exec -it ros2_gazebo_vnc bash
+
+# Run single command
+docker exec ros2_gazebo_vnc ros2 topic list
+```
+
+### Rebuild After Changes
+
+```bash
+# Rebuild and restart
+docker compose build
+docker compose up -d --force-recreate
+```
+
+### Clean Up
+
+```bash
+# Remove container and network
+docker compose down
+
+# Remove image too
+docker compose down --rmi all
+
+# Remove volumes
+docker compose down -v
+
+# Full cleanup
+docker system prune -a
+```
+
+---
+
+## Troubleshooting
+
+### Cannot Connect to VNC
+
+1. **Check container is running:**
+   ```bash
+   docker compose ps
+   ```
+
+2. **Check ports are open:**
+   ```bash
+   netstat -tlnp | grep -E "5901|6080"
+   ```
+
+3. **Check firewall:**
+   ```bash
+   sudo ufw allow 5901
+   sudo ufw allow 6080
+   ```
+
+4. **Check logs:**
+   ```bash
+   docker compose logs
+   ```
+
+### Black Screen in VNC
+
+1. **Check window manager:**
+   ```bash
+   docker exec ros2_gazebo_vnc pgrep openbox
+   ```
+
+2. **Restart VNC server:**
+   ```bash
+   docker exec ros2_gazebo_vnc vncserver -kill :1
+   docker exec ros2_gazebo_vnc /startup-vnc.sh
+   ```
+
+### Gazebo Not Starting
+
+1. **Check memory:**
+   ```bash
+   docker stats ros2_gazebo_vnc
+   ```
+   Increase `MEMORY_LIMIT` in `.env` if needed.
+
+2. **Check shared memory:**
+   ```bash
+   df -h /dev/shm
+   ```
+   Should have at least 2GB.
+
+3. **Try software rendering:**
+   ```bash
+   export LIBGL_ALWAYS_SOFTWARE=1
+   gz sim shapes.sdf
+   ```
+
+### Slow Performance
+
+1. **Reduce resolution:**
+   ```bash
+   VNC_RESOLUTION=1280x720
+   ```
+
+2. **Lower color depth:**
+   ```bash
+   VNC_DEPTH=16
+   ```
+
+3. **Use VNC client** instead of browser (better compression)
+
+4. **Adjust VNC client settings:**
+   - Lower quality
+   - Enable compression
+   - Use Tight encoding
+
+### Password Issues
+
+```bash
+# Reset password
+docker exec -it ros2_gazebo_vnc bash
+echo "newpassword" | vncpasswd -f > ~/.vnc/passwd
+chmod 600 ~/.vnc/passwd
+
+# Restart VNC
+vncserver -kill :1
+/startup-vnc.sh
+```
+
+---
+
+## Security Recommendations
+
+### 1. Change Default Password
+
+**Always change the default password!**
+
+```bash
+# In .env
+VNC_PASSWORD=YourStrongPassword123!
+```
+
+### 2. Use SSH Tunnel (Recommended)
+
+Instead of exposing ports directly:
+
+```bash
+# From Windows (PowerShell)
+ssh -L 5901:localhost:5901 -L 6080:localhost:6080 user@ubuntu-server
+
+# Then connect to localhost
+# VNC: localhost:5901
+# Web: http://localhost:6080/vnc.html
+```
+
+### 3. Firewall Rules
+
+Only allow specific IPs:
+
+```bash
+# On Ubuntu server
+sudo ufw default deny incoming
+sudo ufw allow from <your-windows-ip> to any port 5901
+sudo ufw allow from <your-windows-ip> to any port 6080
+```
+
+### 4. Use VPN
+
+For remote access over internet, use VPN rather than direct port exposure.
+
+---
+
+## ROS 2 Communication Setup
+
+### Fast DDS (Default)
+
+Already configured in `.env`:
+```bash
+RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+```
+
+### Multi-Container Communication
+
+If running multiple ROS 2 containers:
+
+```yaml
+# Same ROS_DOMAIN_ID
+environment:
+  - ROS_DOMAIN_ID=42
+
+# Use bridge network with shared network
+networks:
+  ros_network:
+    driver: bridge
+```
+
+### External ROS 2 Nodes
+
+To communicate with ROS 2 nodes outside container:
+
+1. Use `network_mode: host` (loses port mapping)
+2. Or configure multicast properly
+3. Set same `ROS_DOMAIN_ID`
+
+---
+
+## File Structure
+
+```
+ros2-gazebo-desktop/
+├── Dockerfile               # XFCE Desktop + VNC image definition
+├── docker-compose.yml       # Main compose configuration
+├── startup-vnc.sh           # VNC startup script
+├── .env.vnc                 # Environment template (copy to .env)
+├── .env                     # Your configuration (gitignored)
+├── .gitignore               # Git ignore rules
+├── README.md                # This documentation
+├── ROS2_NETWORKING.md       # ROS 2 DDS networking guide
+└── ros2_ws/                 # Your ROS 2 workspace (mounted)
+    └── src/
+        └── your_packages/
+```
+
+---
+
+## Summary
+
+1. **Copy config**: `cp .env.vnc .env`
+2. **Edit password**: Change `VNC_PASSWORD` in `.env`
+3. **Build**: `docker compose build`
+4. **Start**: `docker compose up -d`
+5. **Connect**: `http://<server>:6080/vnc.html`
+6. **Use**: Run Gazebo and ROS 2 tools in VNC desktop
+
+### Key Benefits
+
+- **Full XFCE Desktop** - Real desktop experience with file manager, browser, etc.
+- **Desktop Shortcuts** - One-click launch for Gazebo, RViz2, RQt
+- **Host Network Mode** - ROS 2 nodes can communicate with external systems
+- **Web Browser Access** - No client software needed, just open browser
+- **Fast DDS** - Industry standard ROS 2 middleware
+
+### ROS 2 Communication
+
+With host network mode, your ROS 2 nodes inside the container can automatically discover and communicate with:
+- Other containers on the same host
+- ROS 2 nodes running directly on the host
+- External ROS 2 systems on the same network (like your R2 Pilot)
+
+See [ROS2_NETWORKING.md](ROS2_NETWORKING.md) for detailed networking configuration.
