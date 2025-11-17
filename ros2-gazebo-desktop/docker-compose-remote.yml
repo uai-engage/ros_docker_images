@@ -1,5 +1,3 @@
-version: '3.8'
-
 # Docker Compose for Remote Ubuntu Server Deployment
 # Use this when running on a remote server and displaying on Windows host
 
@@ -27,18 +25,19 @@ services:
       - LIBGL_ALWAYS_INDIRECT=0
       # XDG_RUNTIME_DIR for Gazebo
       - XDG_RUNTIME_DIR=/tmp/runtime-${USERNAME:-rosuser}
-      # Force software rendering if GPU issues
-      # - LIBGL_ALWAYS_SOFTWARE=1
+      # Software rendering (enable if no GPU available)
+      - LIBGL_ALWAYS_SOFTWARE=1
       - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}
       - RMW_IMPLEMENTATION=${RMW_IMPLEMENTATION:-rmw_fastrtps_cpp}
       - GZ_SIM_RESOURCE_PATH=${GZ_SIM_RESOURCE_PATH:-/home/rosuser/ros2_ws/src/models}
       - GZ_PARTITION=${GZ_PARTITION:-gazebo}
       - GZ_IP=${GZ_IP:-127.0.0.1}
 
-    # Add user to host's video and render groups for GPU access
-    group_add:
-      - video
-      - render
+    # Add user to host's video group for GPU access (if available)
+    # Uncomment if your server has GPU and the groups exist:
+    # group_add:
+    #   - video
+    #   - render
 
     volumes:
       # Mount workspace from Ubuntu server
@@ -53,9 +52,9 @@ services:
     # Host network for ROS 2 discovery and X11
     network_mode: ${NETWORK_MODE:-host}
 
-    # GPU access if available
-    devices:
-      - /dev/dri:/dev/dri
+    # GPU access if available - comment out if /dev/dri doesn't exist
+    # devices:
+    #   - /dev/dri:/dev/dri
 
     privileged: false
 
