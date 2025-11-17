@@ -120,7 +120,6 @@ RUN mkdir -p /home/$USERNAME/.ros \
       <builtin>\n\
         <discovery_config>\n\
           <discoveryProtocol>SIMPLE</discoveryProtocol>\n\
-          <use_WriterLivelinessProtocol>AUTOMATIC</use_WriterLivelinessProtocol>\n\
           <leaseDuration>\n\
             <sec>DURATION_INFINITY</sec>\n\
           </leaseDuration>\n\
