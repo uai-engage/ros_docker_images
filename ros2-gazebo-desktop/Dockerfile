@@ -67,10 +67,19 @@ RUN apt-get update \
     && chmod 0440 /etc/sudoers.d/$USERNAME \
     && rm -rf /var/lib/apt/lists/*
 
+# Add user to video and render groups for GPU access
+RUN usermod -aG video $USERNAME 2>/dev/null || true \
+    && usermod -aG render $USERNAME 2>/dev/null || true
+
 # Set up ROS 2 environment for the user
 RUN echo "source /opt/ros/jazzy/setup.bash" >> /home/$USERNAME/.bashrc \
     && echo "export ROS_DOMAIN_ID=0" >> /home/$USERNAME/.bashrc \
-    && echo "export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp" >> /home/$USERNAME/.bashrc
+    && echo "export RMW_IMPLEMENTATION=rmw_fastrtps_cpp" >> /home/$USERNAME/.bashrc \
+    && echo "export QT_X11_NO_MITSHM=1" >> /home/$USERNAME/.bashrc \
+    && echo "export XDG_RUNTIME_DIR=/tmp/runtime-\$USER" >> /home/$USERNAME/.bashrc \
+    && mkdir -p /tmp/runtime-$USERNAME \
+    && chown $USERNAME:$USERNAME /tmp/runtime-$USERNAME \
+    && chmod 700 /tmp/runtime-$USERNAME
 
 # Create workspace directory
 RUN mkdir -p /home/$USERNAME/ros2_ws/src \
