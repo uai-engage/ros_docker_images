@@ -126,7 +126,7 @@ RUN mkdir -p /home/$USERNAME/.ros \
     && chown -R $USERNAME:$USERNAME /home/$USERNAME/.ros
 
 # VNC startup script
-COPY --chown=$USERNAME:$USERNAME startup-vnc-xfce.sh /startup-vnc.sh
+COPY --chown=$USERNAME:$USERNAME startup-vnc.sh /startup-vnc.sh
 RUN chmod +x /startup-vnc.sh
 
 WORKDIR /home/$USERNAME/ros2_ws
