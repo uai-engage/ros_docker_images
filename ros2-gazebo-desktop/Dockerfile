@@ -124,12 +124,11 @@ RUN cd /home/$USERNAME/ros2_ws/src \
     && git clone https://github.com/micro-ROS/micro-ROS-Agent.git \
     && chown -R $USERNAME:$USERNAME /home/$USERNAME/ros2_ws/src/micro-ROS-Agent
 
-# Build micro-ROS agent as user
+# Build micro-ROS agent as user (use only custom Fast DDS, not ROS Fast DDS)
 USER $USERNAME
 RUN cd /home/$USERNAME/ros2_ws \
-    && . /opt/ros/jazzy/setup.sh \
     && . src/fastdds_ws/install/setup.sh \
-    && colcon build --packages-select micro_ros_agent --cmake-args -DCMAKE_BUILD_TYPE=Release
+    && colcon build --packages-select micro_ros_agent --cmake-args -DCMAKE_BUILD_TYPE=Release -DCMAKE_FIND_PACKAGE_PREFER_CONFIG=ON
 
 # Add workspace sourcing to bashrc
 RUN echo "source /home/$USERNAME/ros2_ws/src/fastdds_ws/install/setup.bash" >> /home/$USERNAME/.bashrc \
