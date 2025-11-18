@@ -127,10 +127,17 @@ RUN cd /home/$USERNAME/ros2_ws/src \
 # Build micro-ROS agent as user (use only custom Fast DDS, not ROS Fast DDS)
 USER $USERNAME
 RUN cd /home/$USERNAME/ros2_ws \
+    && . /opt/ros/jazzy/setup.sh \
     && . src/fastdds_ws/install/setup.sh \
-    && colcon build --packages-select micro_ros_agent --cmake-args -DCMAKE_BUILD_TYPE=Release -DCMAKE_FIND_PACKAGE_PREFER_CONFIG=ON
+    && colcon build --packages-select micro_ros_agent \
+       --cmake-args \
+         -DCMAKE_BUILD_TYPE=Release \
+         -DCMAKE_FIND_PACKAGE_PREFER_CONFIG=ON \
+         -Dfastrtps_DIR=/home/$USERNAME/ros2_ws/src/fastdds_ws/install/fastrtps/share/fastrtps/cmake \
+         -Dfastcdr_DIR=/home/$USERNAME/ros2_ws/src/fastdds_ws/install/fastcdr/share/fastcdr/cmake \
+         -Dfoonathan_memory_DIR=/home/$USERNAME/ros2_ws/src/fastdds_ws/install/foonathan_memory_vendor/share/foonathan_memory/cmake
 
-# Add workspace sourcing to bashrc
+# Add workspace sourcing to bashrc (ROS already sourced above at line 94)
 RUN echo "source /home/$USERNAME/ros2_ws/src/fastdds_ws/install/setup.bash" >> /home/$USERNAME/.bashrc \
     && echo "source /home/$USERNAME/ros2_ws/install/setup.bash" >> /home/$USERNAME/.bashrc
 USER root
