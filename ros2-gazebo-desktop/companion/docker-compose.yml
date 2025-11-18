@@ -1,0 +1,292 @@
+version: '3.8'
+
+services:
+  micro-ros-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: micro-ros-agent:minimal
+    container_name: micro_ros_agent_companion
+
+    # Host network for ROS 2 DDS multicast discovery
+    # This allows the companion computer to communicate with ground station
+    network_mode: host
+
+    # Serial device access (only needed for serial/USB mode)
+    # Comment out this section if using UDP/TCP mode
+    # Uncomment when switching to real hardware with serial connection
+    # devices:
+    #   - /dev/ttyUSB0:/dev/ttyUSB0
+    #   # Other common devices:
+    #   # - /dev/ttyACM0:/dev/ttyACM0
+    #   # - /dev/ttyAMA0:/dev/ttyAMA0
+
+    # Required for serial port access (not needed for UDP/TCP)
+    # privileged: true
+
+    environment:
+      # ==========================================
+      # ROS 2 CONFIGURATION
+      # ==========================================
+
+      # ROS Domain ID (must match ground station)
+      - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}
+
+      # DDS implementation
+      - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+
+      # Ground station IP address (IMPORTANT!)
+      # Set this to your ground station's IP address
+      # This is used for ROS 2 discovery over network
+      - GROUND_STATION_IP=${GROUND_STATION_IP:-192.168.1.100}
+
+      # Optional: Discovery server mode (for unreliable radio links)
+      # Uncomment if using discovery server instead of multicast
+      # - ROS_DISCOVERY_SERVER=${GROUND_STATION_IP:-192.168.1.100}:11811
+
+      # ==========================================
+      # CONNECTION MODE CONFIGURATION
+      # ==========================================
+
+      # Connection mode: udp4, tcp4, serial
+      # - udp4: UDP IPv4 (default, best for SITL testing)
+      # - tcp4: TCP IPv4 (reliable network connection)
+      # - serial: Serial/USB connection (for real hardware)
+      - CONNECTION_MODE=${CONNECTION_MODE:-udp4}
+
+      # UDP/TCP configuration
+      - AGENT_PORT=${AGENT_PORT:-2019}
+      - AGENT_IP=${AGENT_IP:-0.0.0.0}
+
+      # Serial configuration (used only when CONNECTION_MODE=serial)
+      - SERIAL_DEVICE=${SERIAL_DEVICE:-/dev/ttyUSB0}
+      - BAUD_RATE=${BAUD_RATE:-921600}
+
+      # Verbose logging (0-6, higher = more verbose)
+      - VERBOSE_LEVEL=${VERBOSE_LEVEL:-0}
+
+    # ==========================================
+    # MICRO-ROS AGENT COMMAND
+    # ==========================================
+    #
+    # The command automatically selects the connection mode based on CONNECTION_MODE
+    # You can also override this entirely by uncommenting one of the examples below
+
+    # AUTOMATIC MODE SELECTION (RECOMMENDED)
+    command: >
+      bash -c "
+      source /opt/ros/jazzy/setup.bash &&
+      source /opt/micro_ros_agent_ws/install/setup.bash &&
+
+      echo '==========================================' &&
+      echo '  micro-ROS Agent Starting...' &&
+      echo '==========================================' &&
+      echo 'Connection Mode: $${CONNECTION_MODE}' &&
+      echo 'Ground Station IP: $${GROUND_STATION_IP}' &&
+      echo 'ROS Domain ID: $${ROS_DOMAIN_ID}' &&
+      echo '==========================================' &&
+      echo '' &&
+
+      if [ \"$${CONNECTION_MODE}\" = \"udp4\" ]; then
+        echo 'Starting UDP4 mode on port $${AGENT_PORT}' &&
+        echo 'Command: ros2 run micro_ros_agent micro_ros_agent udp4 --port $${AGENT_PORT}' &&
+        echo '' &&
+        if [ \"$${VERBOSE_LEVEL}\" -gt 0 ]; then
+          ros2 run micro_ros_agent micro_ros_agent udp4 --port $${AGENT_PORT} -v$${VERBOSE_LEVEL}
+        else
+          ros2 run micro_ros_agent micro_ros_agent udp4 --port $${AGENT_PORT}
+        fi
+      elif [ \"$${CONNECTION_MODE}\" = \"tcp4\" ]; then
+        echo 'Starting TCP4 mode on port $${AGENT_PORT}' &&
+        echo 'Command: ros2 run micro_ros_agent micro_ros_agent tcp4 --port $${AGENT_PORT}' &&
+        echo '' &&
+        if [ \"$${VERBOSE_LEVEL}\" -gt 0 ]; then
+          ros2 run micro_ros_agent micro_ros_agent tcp4 --port $${AGENT_PORT} -v$${VERBOSE_LEVEL}
+        else
+          ros2 run micro_ros_agent micro_ros_agent tcp4 --port $${AGENT_PORT}
+        fi
+      elif [ \"$${CONNECTION_MODE}\" = \"serial\" ]; then
+        echo 'Starting Serial mode: $${SERIAL_DEVICE} @ $${BAUD_RATE} baud' &&
+        echo 'Command: ros2 run micro_ros_agent micro_ros_agent serial --dev $${SERIAL_DEVICE} -b $${BAUD_RATE}' &&
+        echo '' &&
+        if [ \"$${VERBOSE_LEVEL}\" -gt 0 ]; then
+          ros2 run micro_ros_agent micro_ros_agent serial --dev $${SERIAL_DEVICE} -b $${BAUD_RATE} -v$${VERBOSE_LEVEL}
+        else
+          ros2 run micro_ros_agent micro_ros_agent serial --dev $${SERIAL_DEVICE} -b $${BAUD_RATE}
+        fi
+      else
+        echo 'ERROR: Invalid CONNECTION_MODE: $${CONNECTION_MODE}' &&
+        echo 'Valid modes: udp4, tcp4, serial' &&
+        exit 1
+      fi
+      "
+
+    # ==========================================
+    # MANUAL COMMAND EXAMPLES (Comment out automatic command above to use these)
+    # ==========================================
+
+    # Example 1: UDP mode (SITL testing - DEFAULT)
+    # command: >
+    #   bash -c "source /opt/ros/jazzy/setup.bash &&
+    #            source /opt/micro_ros_agent_ws/install/setup.bash &&
+    #            ros2 run micro_ros_agent micro_ros_agent udp4 --port 2019"
+
+    # Example 2: TCP mode (reliable network connection)
+    # command: >
+    #   bash -c "source /opt/ros/jazzy/setup.bash &&
+    #            source /opt/micro_ros_agent_ws/install/setup.bash &&
+    #            ros2 run micro_ros_agent micro_ros_agent tcp4 --port 2019"
+
+    # Example 3: Serial mode - USB with 921600 baud (high speed)
+    # command: >
+    #   bash -c "source /opt/ros/jazzy/setup.bash &&
+    #            source /opt/micro_ros_agent_ws/install/setup.bash &&
+    #            ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/ttyUSB0 -b 921600"
+
+    # Example 4: Serial mode - USB with 115200 baud (standard speed)
+    # command: >
+    #   bash -c "source /opt/ros/jazzy/setup.bash &&
+    #            source /opt/micro_ros_agent_ws/install/setup.bash &&
+    #            ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/ttyUSB0 -b 115200"
+
+    # Example 5: Serial mode - ArduPilot USB CDC (ttyACM0)
+    # command: >
+    #   bash -c "source /opt/ros/jazzy/setup.bash &&
+    #            source /opt/micro_ros_agent_ws/install/setup.bash &&
+    #            ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/ttyACM0 -b 921600"
+
+    # Example 6: Verbose logging (debugging)
+    # command: >
+    #   bash -c "source /opt/ros/jazzy/setup.bash &&
+    #            source /opt/micro_ros_agent_ws/install/setup.bash &&
+    #            ros2 run micro_ros_agent micro_ros_agent udp4 --port 2019 -v6"
+
+    # Restart policy
+    restart: unless-stopped
+
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# ==========================================
+# USAGE INSTRUCTIONS
+# ==========================================
+#
+# Quick Start (UDP mode for SITL testing):
+#   docker compose -f docker-compose.companion.yml up -d
+#
+# Custom configuration with environment variables:
+#   CONNECTION_MODE=udp4 AGENT_PORT=2019 GROUND_STATION_IP=192.168.1.100 docker compose -f docker-compose.companion.yml up -d
+#
+# ==========================================
+# CONFIGURATION OPTIONS
+# ==========================================
+#
+# Set these as environment variables or create a .env file:
+#
+# CONNECTION_MODE=udp4              # Connection type: udp4, tcp4, serial
+# AGENT_PORT=2019                   # Port for UDP/TCP mode
+# GROUND_STATION_IP=192.168.1.100   # IP address of ground station
+# ROS_DOMAIN_ID=0                   # ROS 2 domain ID
+# SERIAL_DEVICE=/dev/ttyUSB0        # Serial device (for serial mode)
+# BAUD_RATE=921600                  # Baud rate (for serial mode)
+# VERBOSE_LEVEL=0                   # Logging verbosity (0-6)
+#
+# ==========================================
+# SWITCHING BETWEEN MODES
+# ==========================================
+#
+# 1. UDP MODE (SITL Testing - Current Default):
+#    CONNECTION_MODE=udp4 docker compose -f docker-compose.companion.yml up -d
+#
+#    ArduPilot SITL configuration:
+#      sim_vehicle.py --console --map -A "--serial3=udp:127.0.0.1:2019"
+#    Or in ArduPilot parameters:
+#      DDS_ENABLE = 1
+#      DDS_UDP_PORT = 2019
+#
+# 2. TCP MODE (Reliable Network Connection):
+#    CONNECTION_MODE=tcp4 docker compose -f docker-compose.companion.yml up -d
+#
+#    ArduPilot configuration:
+#      DDS_ENABLE = 1
+#      DDS_PROTOCOL = 1  (TCP)
+#      DDS_PORT = 2019
+#
+# 3. SERIAL MODE (Real Hardware):
+#    a. Uncomment the 'devices' and 'privileged' sections above
+#    b. Set serial device permissions:
+#       sudo usermod -aG dialout $USER
+#       sudo chmod 666 /dev/ttyUSB0
+#    c. Run:
+#       CONNECTION_MODE=serial SERIAL_DEVICE=/dev/ttyUSB0 BAUD_RATE=921600 docker compose -f docker-compose.companion.yml up -d
+#
+#    ArduPilot hardware configuration:
+#      SERIAL3_PROTOCOL = 45  (DDS/micro-ROS)
+#      SERIAL3_BAUD = 921600
+#      DDS_ENABLE = 1
+#
+# ==========================================
+# COMMON BAUD RATES
+# ==========================================
+#
+# - 115200  - Standard speed (reliable, compatible)
+# - 230400  - Medium speed
+# - 460800  - High speed
+# - 921600  - Very high speed (recommended for micro-ROS)
+# - 1500000 - Maximum speed (some hardware only)
+#
+# ==========================================
+# VERIFICATION
+# ==========================================
+#
+# Check logs:
+#   docker logs -f micro_ros_agent_companion
+#
+# Check if agent is running:
+#   docker ps | grep micro_ros_agent_companion
+#
+# On ground station, check topics:
+#   ros2 topic list  # Should see /fmu/* topics
+#   ros2 topic echo /fmu/battery/status
+#
+# ==========================================
+# TROUBLESHOOTING
+# ==========================================
+#
+# 1. No topics on ground station:
+#    - Check ROS_DOMAIN_ID matches on both systems
+#    - Check network connectivity: ping <companion-ip>
+#    - Check GROUND_STATION_IP is correct
+#    - Restart ROS daemon: ros2 daemon stop && ros2 daemon start
+#
+# 2. Serial device not found (serial mode):
+#    - List devices: ls -l /dev/tty*
+#    - Check permissions: sudo chmod 666 /dev/ttyUSB0
+#    - Verify device in container: docker exec micro_ros_agent_companion ls -l /dev/ttyUSB0
+#
+# 3. Connection refused (UDP/TCP):
+#    - Check port is not in use: netstat -tulpn | grep 2019
+#    - Check firewall: sudo ufw allow 2019/udp
+#    - Verify ArduPilot is sending to correct IP:port
+#
+# 4. Enable verbose logging:
+#    VERBOSE_LEVEL=6 docker compose -f docker-compose.companion.yml up
+#
+# ==========================================
+# GROUND STATION CONFIGURATION
+# ==========================================
+#
+# On ground station, ensure ROS_DOMAIN_ID matches:
+#   export ROS_DOMAIN_ID=0
+#
+# Add to ~/.bashrc for persistence:
+#   echo "export ROS_DOMAIN_ID=0" >> ~/.bashrc
+#
+# Check ground station can see companion:
+#   ping <companion-ip>
+#   ros2 topic list  # Should show /fmu/* topics
+#

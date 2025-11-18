@@ -1,0 +1,72 @@
+[Unit]
+Description=micro-ROS Agent for ArduPilot
+Documentation=https://github.com/micro-ROS/micro-ROS-Agent
+After=network.target
+
+[Service]
+Type=simple
+
+# Change to your username
+User=ubuntu
+
+# Change to your home directory
+WorkingDirectory=/home/ubuntu
+
+# Environment variables
+Environment="ROS_DOMAIN_ID=0"
+Environment="RMW_IMPLEMENTATION=rmw_fastrtps_cpp"
+
+# Optional: Discovery server mode (uncomment if needed)
+# Environment="ROS_DISCOVERY_SERVER=192.168.1.50:11811"
+
+# Start micro-ROS agent
+# Adjust paths and serial device as needed
+ExecStart=/bin/bash -c "source /opt/ros/jazzy/setup.bash && source /home/ubuntu/micro_ros_ws/install/setup.bash && ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/ttyUSB0 -b 921600"
+
+# For UDP mode instead of serial, use:
+# ExecStart=/bin/bash -c "source /opt/ros/jazzy/setup.bash && source /home/ubuntu/micro_ros_ws/install/setup.bash && ros2 run micro_ros_agent micro_ros_agent udp4 --port 2019"
+
+# Restart on failure
+Restart=always
+RestartSec=5
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+
+# Installation Instructions:
+# 1. Edit this file and replace:
+#    - 'ubuntu' with your username (2 places)
+#    - '/home/ubuntu' with your home directory
+#    - '/dev/ttyUSB0' with your serial device
+#
+# 2. Copy to systemd directory:
+#    sudo cp systemd/micro-ros-agent.service /etc/systemd/system/
+#
+# 3. Set permissions (if needed):
+#    sudo usermod -aG dialout ubuntu
+#    sudo chmod 666 /dev/ttyUSB0
+#
+# 4. Reload systemd:
+#    sudo systemctl daemon-reload
+#
+# 5. Enable auto-start on boot:
+#    sudo systemctl enable micro-ros-agent.service
+#
+# 6. Start the service:
+#    sudo systemctl start micro-ros-agent.service
+#
+# 7. Check status:
+#    sudo systemctl status micro-ros-agent.service
+#
+# 8. View logs:
+#    sudo journalctl -u micro-ros-agent.service -f
+#
+# 9. Stop service:
+#    sudo systemctl stop micro-ros-agent.service
+#
+# 10. Disable auto-start:
+#     sudo systemctl disable micro-ros-agent.service
