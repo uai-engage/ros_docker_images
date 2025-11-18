@@ -58,6 +58,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     iputils-ping \
     dbus-x11 \
     at-spi2-core \
+    # Fast DDS dependencies for micro-ROS agent
+    libfastrtps-dev \
+    libfastcdr-dev \
     # Fonts
     fonts-dejavu \
     fonts-liberation \
