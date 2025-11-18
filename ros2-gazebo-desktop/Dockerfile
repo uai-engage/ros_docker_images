@@ -20,6 +20,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # MAVROS2 for ArduPilot communication
     ros-jazzy-mavros \
     ros-jazzy-mavros-extras \
+    # micro-ROS agent for ArduPilot DDS support
+    ros-jazzy-micro-ros-agent \
     # XFCE Desktop Environment (full)
     xfce4 \
     xfce4-goodies \
