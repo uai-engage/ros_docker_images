@@ -58,9 +58,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     iputils-ping \
     dbus-x11 \
     at-spi2-core \
-    # Fast DDS for micro-ROS agent
+    # Fast DDS build dependencies
     libfastcdr-dev \
     libfastrtps-dev \
+    libasio-dev \
+    libtinyxml2-dev \
     # Fonts
     fonts-dejavu \
     fonts-liberation \
@@ -100,6 +102,39 @@ RUN echo "source /opt/ros/jazzy/setup.bash" >> /home/$USERNAME/.bashrc \
 # Create workspace
 RUN mkdir -p /home/$USERNAME/ros2_ws/src \
     && chown -R $USERNAME:$USERNAME /home/$USERNAME/ros2_ws
+
+# Build Fast DDS from source (required for micro-ROS agent)
+RUN cd /home/$USERNAME/ros2_ws \
+    && mkdir -p src/fastdds_ws/src \
+    && cd src/fastdds_ws/src \
+    && git clone https://github.com/eProsima/foonathan_memory_vendor.git \
+    && git clone https://github.com/eProsima/Fast-CDR.git \
+    && git clone https://github.com/eProsima/Fast-DDS.git \
+    && chown -R $USERNAME:$USERNAME /home/$USERNAME/ros2_ws/src/fastdds_ws
+
+# Build Fast DDS as user
+USER $USERNAME
+RUN cd /home/$USERNAME/ros2_ws/src/fastdds_ws \
+    && . /opt/ros/jazzy/setup.sh \
+    && colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
+USER root
+
+# Clone micro-ROS agent
+RUN cd /home/$USERNAME/ros2_ws/src \
+    && git clone https://github.com/micro-ROS/micro-ROS-Agent.git \
+    && chown -R $USERNAME:$USERNAME /home/$USERNAME/ros2_ws/src/micro-ROS-Agent
+
+# Build micro-ROS agent as user
+USER $USERNAME
+RUN cd /home/$USERNAME/ros2_ws \
+    && . /opt/ros/jazzy/setup.sh \
+    && . src/fastdds_ws/install/setup.sh \
+    && colcon build --packages-select micro_ros_agent --cmake-args -DCMAKE_BUILD_TYPE=Release
+
+# Add workspace sourcing to bashrc
+RUN echo "source /home/$USERNAME/ros2_ws/src/fastdds_ws/install/setup.bash" >> /home/$USERNAME/.bashrc \
+    && echo "source /home/$USERNAME/ros2_ws/install/setup.bash" >> /home/$USERNAME/.bashrc
+USER root
 
 # Setup VNC directory
 RUN mkdir -p /home/$USERNAME/.vnc /home/$USERNAME/.config \
