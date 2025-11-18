@@ -58,9 +58,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     iputils-ping \
     dbus-x11 \
     at-spi2-core \
-    # Fast DDS dependencies for micro-ROS agent
-    libfastrtps-dev \
-    libfastcdr-dev \
     # Fonts
     fonts-dejavu \
     fonts-liberation \
@@ -100,18 +97,6 @@ RUN echo "source /opt/ros/jazzy/setup.bash" >> /home/$USERNAME/.bashrc \
 # Create workspace
 RUN mkdir -p /home/$USERNAME/ros2_ws/src \
     && chown -R $USERNAME:$USERNAME /home/$USERNAME/ros2_ws
-
-# Build micro-ROS agent from source for ArduPilot DDS support
-RUN cd /home/$USERNAME/ros2_ws \
-    && git clone https://github.com/micro-ROS/micro-ROS-Agent.git src/micro-ROS-Agent \
-    && chown -R $USERNAME:$USERNAME /home/$USERNAME/ros2_ws/src/micro-ROS-Agent
-
-USER $USERNAME
-RUN cd /home/$USERNAME/ros2_ws \
-    && . /opt/ros/jazzy/setup.sh \
-    && colcon build --packages-select micro_ros_agent \
-    && echo "source /home/$USERNAME/ros2_ws/install/setup.bash" >> /home/$USERNAME/.bashrc
-USER root
 
 # Setup VNC directory
 RUN mkdir -p /home/$USERNAME/.vnc /home/$USERNAME/.config \
