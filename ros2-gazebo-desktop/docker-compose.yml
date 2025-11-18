@@ -31,6 +31,7 @@ services:
       - FASTRTPS_DEFAULT_PROFILES_FILE=/home/${USERNAME:-rosuser}/.ros/fastdds.xml
 
     volumes:
+      # Mount user workspace for custom packages (micro-ROS agent in /opt)
       - ${HOST_WORKSPACE:-./ros2_ws}:/home/${USERNAME:-rosuser}/ros2_ws:rw
       - /dev/shm:/dev/shm
 

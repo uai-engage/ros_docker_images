@@ -103,25 +103,27 @@ RUN echo "source /opt/ros/jazzy/setup.bash" >> /home/$USERNAME/.bashrc \
     && chown $USERNAME:$USERNAME /tmp/runtime-$USERNAME \
     && chmod 700 /tmp/runtime-$USERNAME
 
-# Create workspace
+# Create user workspace (will be mounted from host)
 RUN mkdir -p /home/$USERNAME/ros2_ws/src \
     && chown -R $USERNAME:$USERNAME /home/$USERNAME/ros2_ws
 
-# Clone and build micro-ROS agent
-RUN cd /home/$USERNAME/ros2_ws/src \
+# Clone and build micro-ROS agent in system location (not affected by workspace mount)
+RUN mkdir -p /opt/micro_ros_agent_ws/src \
+    && cd /opt/micro_ros_agent_ws/src \
     && git clone https://github.com/micro-ROS/micro-ROS-Agent.git \
     && cd micro-ROS-Agent \
-    && git checkout jazzy \
-    && chown -R $USERNAME:$USERNAME /home/$USERNAME/ros2_ws/src/micro-ROS-Agent
+    && git checkout jazzy
 
-# Build micro-ROS agent as user
-USER $USERNAME
-RUN cd /home/$USERNAME/ros2_ws \
+# Build micro-ROS agent as root (system install)
+RUN cd /opt/micro_ros_agent_ws \
     && . /opt/ros/jazzy/setup.sh \
     && colcon build --packages-select micro_ros_agent --cmake-args -DCMAKE_BUILD_TYPE=Release
 
-# Add micro-ROS workspace sourcing to bashrc (ROS already sourced above at line 94)
-RUN echo "source /home/$USERNAME/ros2_ws/install/setup.bash" >> /home/$USERNAME/.bashrc
+# Add micro-ROS agent to bashrc (before user workspace)
+USER $USERNAME
+RUN echo "source /opt/micro_ros_agent_ws/install/setup.bash" >> /home/$USERNAME/.bashrc \
+    && echo "# User workspace (if exists)" >> /home/$USERNAME/.bashrc \
+    && echo "if [ -f ~/ros2_ws/install/setup.bash ]; then source ~/ros2_ws/install/setup.bash; fi" >> /home/$USERNAME/.bashrc
 USER root
 
 # Setup VNC directory
