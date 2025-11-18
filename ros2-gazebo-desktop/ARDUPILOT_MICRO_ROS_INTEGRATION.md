@@ -12,7 +12,7 @@ Complete guide for connecting ArduPilot (running in separate Docker container) t
 │  ┌──────────────────────┐           │         │  ┌────────────────────┐              │
 │  │   ArduPilot SITL     │           │         │  │   micro-ROS Agent  │              │
 │  │   (Copter/Plane/etc) │           │         │  │   (DDS-XRCE)       │              │
-│  │                      │           │         │  │   Port: 8888       │              │
+│  │                      │           │         │  │   Port: 2019       │              │
 │  │   Serial/UDP Output  │◄─────────────────────┼─►│                    │              │
 │  │   Port: 2019         │  micro-XRCE         │  └─────────┬──────────┘              │
 │  └──────────────────────┘  Protocol           │            │                         │
@@ -213,7 +213,7 @@ Host Machine (Linux)
 │   └── Listens on: 0.0.0.0:2019 (or outputs to 127.0.0.1:2019)
 │
 └── ROS 2 Container (host network)
-    └── micro-ROS Agent listens on: 0.0.0.0:8888
+    └── micro-ROS Agent listens on: 0.0.0.0:2019
 ```
 
 ### Port Assignments:
@@ -221,7 +221,7 @@ Host Machine (Linux)
 | Service | Port | Protocol | Direction |
 |---------|------|----------|-----------|
 | ArduPilot micro-ROS output | 2019 | UDP | ArduPilot → Agent |
-| micro-ROS Agent | 8888 | UDP | Agent ← ArduPilot |
+| micro-ROS Agent | 2019 | UDP | Agent ← ArduPilot |
 | ROS 2 DDS Discovery | 7400+ | UDP/Multicast | ROS ↔ ROS |
 | VNC Server | 5901 | TCP | Client → Container |
 | noVNC Web | 6080 | TCP | Browser → Container |
@@ -237,27 +237,27 @@ Host Machine (Linux)
 source /opt/ros/jazzy/setup.bash
 source ~/ros2_ws/install/setup.bash  # if built from source
 
-# Run agent listening on UDP port 8888
-ros2 run micro_ros_agent micro_ros_agent udp4 --port 8888
+# Run agent listening on UDP port 2019
+ros2 run micro_ros_agent micro_ros_agent udp4 --port 2019
 
 # Alternative: Verbose mode for debugging
-ros2 run micro_ros_agent micro_ros_agent udp4 --port 8888 -v6
+ros2 run micro_ros_agent micro_ros_agent udp4 --port 2019 -v6
 ```
 
 ### Agent Command Options:
 
 ```bash
 # UDP IPv4 (most common for ArduPilot)
-ros2 run micro_ros_agent micro_ros_agent udp4 --port 8888
+ros2 run micro_ros_agent micro_ros_agent udp4 --port 2019
 
 # TCP (if ArduPilot configured for TCP)
-ros2 run micro_ros_agent micro_ros_agent tcp4 --port 8888
+ros2 run micro_ros_agent micro_ros_agent tcp4 --port 2019
 
 # Serial (if using serial passthrough to container)
 ros2 run micro_ros_agent micro_ros_agent serial --dev /dev/ttyUSB0 -b 921600
 
 # Verbosity levels (-v1 to -v6, higher = more debug info)
-ros2 run micro_ros_agent micro_ros_agent udp4 --port 8888 -v6
+ros2 run micro_ros_agent micro_ros_agent udp4 --port 2019 -v6
 ```
 
 ### Running as Background Service
@@ -280,7 +280,7 @@ Type=simple
 User=rosuser
 WorkingDirectory=/home/rosuser
 Environment="ROS_DOMAIN_ID=0"
-ExecStart=/bin/bash -c "source /opt/ros/jazzy/setup.bash && source /home/rosuser/ros2_ws/install/setup.bash && ros2 run micro_ros_agent micro_ros_agent udp4 --port 8888"
+ExecStart=/bin/bash -c "source /opt/ros/jazzy/setup.bash && source /home/rosuser/ros2_ws/install/setup.bash && ros2 run micro_ros_agent micro_ros_agent udp4 --port 2019"
 Restart=always
 RestartSec=5
 
@@ -294,7 +294,7 @@ WantedBy=multi-user.target
 sudo apt-get install tmux
 
 # Start agent in tmux session
-tmux new-session -d -s micro_ros_agent "source /opt/ros/jazzy/setup.bash && source ~/ros2_ws/install/setup.bash && ros2 run micro_ros_agent micro_ros_agent udp4 --port 8888"
+tmux new-session -d -s micro_ros_agent "source /opt/ros/jazzy/setup.bash && source ~/ros2_ws/install/setup.bash && ros2 run micro_ros_agent micro_ros_agent udp4 --port 2019"
 
 # Attach to see output
 tmux attach -t micro_ros_agent
@@ -319,7 +319,7 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument(
             'port',
-            default_value='8888',
+            default_value='2019',
             description='UDP port for micro-ROS agent'
         ),
 
@@ -383,7 +383,7 @@ sim_vehicle.py -v ArduCopter --console --map \
 
 **1. Start micro-ROS agent in ROS container:**
 ```bash
-ros2 run micro_ros_agent micro_ros_agent udp4 --port 8888 -v6
+ros2 run micro_ros_agent micro_ros_agent udp4 --port 2019 -v6
 ```
 
 **2. Start ArduPilot in ArduPilot container:**
@@ -415,11 +415,11 @@ ros2 topic list
 
 ```bash
 # In ROS container
-netstat -uln | grep 8888
-# Should show: udp 0.0.0.0:8888
+netstat -uln | grep 2019
+# Should show: udp 0.0.0.0:2019
 
 # Test UDP reachability
-nc -zvu 127.0.0.1 8888
+nc -zvu 127.0.0.1 2019
 ```
 
 ### 2. Monitor micro-ROS Agent Output
@@ -427,7 +427,7 @@ nc -zvu 127.0.0.1 8888
 With verbose mode (-v6), you should see:
 ```
 [INFO] [micro_ros_agent]: Starting micro-ROS agent
-[INFO] [micro_ros_agent]: UDP4 agent on port 8888
+[INFO] [micro_ros_agent]: UDP4 agent on port 2019
 [INFO] [1234567890.123456] [micro_ros_agent]: session established
 [INFO] [1234567890.234567] [micro_ros_agent]: CREATE_CLIENT request received
 ```
@@ -491,10 +491,10 @@ ros2 topic pub /fmu/velocity_setpoint geometry_msgs/msg/Twist \
 **A. Agent not receiving data from ArduPilot**
 ```bash
 # Check if agent is receiving data (verbose mode)
-ros2 run micro_ros_agent micro_ros_agent udp4 --port 8888 -v6
+ros2 run micro_ros_agent micro_ros_agent udp4 --port 2019 -v6
 
 # Check network connectivity
-sudo tcpdump -i lo -n udp port 8888
+sudo tcpdump -i lo -n udp port 2019
 # Should see packets if ArduPilot is sending
 ```
 
@@ -510,14 +510,14 @@ sudo tcpdump -i lo -n udp port 8888
 # ArduPilot sends to port X, agent listens on port Y
 # Make sure ports match:
 # - ArduPilot DDS_PORT = 2019 (or your configured port)
-# - Agent listens on --port 8888
+# - Agent listens on --port 2019
 # These don't need to match, but ArduPilot must send to agent's IP:port
 ```
 
 **D. Firewall blocking (unlikely with host network)**
 ```bash
 # Check firewall
-sudo iptables -L -n | grep 8888
+sudo iptables -L -n | grep 2019
 ```
 
 ---
@@ -531,10 +531,10 @@ sudo iptables -L -n | grep 8888
 **Fix:**
 ```bash
 # Increase agent timeout
-ros2 run micro_ros_agent micro_ros_agent udp4 --port 8888 --timeout 60000
+ros2 run micro_ros_agent micro_ros_agent udp4 --port 2019 --timeout 60000
 
 # Use TCP instead of UDP (more reliable)
-ros2 run micro_ros_agent micro_ros_agent tcp4 --port 8888
+ros2 run micro_ros_agent micro_ros_agent tcp4 --port 2019
 ```
 
 ---
@@ -560,8 +560,8 @@ Error: bind failed: Address already in use
 
 **Fix:**
 ```bash
-# Check what's using port 8888
-sudo netstat -tulpn | grep 8888
+# Check what's using port 2019
+sudo netstat -tulpn | grep 2019
 
 # Kill the process or use different port
 ros2 run micro_ros_agent micro_ros_agent udp4 --port 8889
@@ -629,7 +629,7 @@ You mentioned you already have MAVROS2 installed. Here's how micro-ROS and MAVRO
 ros2 launch mavros apm.launch fcu_url:=udp://:14550@127.0.0.1:14555
 
 # Terminal 2: micro-ROS Agent
-ros2 run micro_ros_agent micro_ros_agent udp4 --port 8888
+ros2 run micro_ros_agent micro_ros_agent udp4 --port 2019
 
 # Both will coexist, publishing different topic namespaces
 # MAVROS: /mavros/*
@@ -682,12 +682,12 @@ source ~/ros2_ws/install/setup.bash
 export ROS_DOMAIN_ID=0
 
 # Start micro-ROS agent in background
-tmux new-session -d -s micro_ros "ros2 run micro_ros_agent micro_ros_agent udp4 --port 8888 -v6"
+tmux new-session -d -s micro_ros "ros2 run micro_ros_agent micro_ros_agent udp4 --port 2019 -v6"
 
 echo "Micro-ROS Agent started in tmux session 'micro_ros'"
 echo "Attach with: tmux attach -t micro_ros"
 echo ""
-echo "Waiting for ArduPilot connection on UDP port 8888..."
+echo "Waiting for ArduPilot connection on UDP port 2019..."
 echo "Topics should appear in a few seconds after ArduPilot starts"
 echo ""
 echo "Monitor with: ros2 topic list"
@@ -703,7 +703,7 @@ chmod +x ~/ros2_ws/start_ardupilot_bridge.sh
 
 ### Start micro-ROS Agent:
 ```bash
-ros2 run micro_ros_agent micro_ros_agent udp4 --port 8888
+ros2 run micro_ros_agent micro_ros_agent udp4 --port 2019
 ```
 
 ### Check Topics:
@@ -715,10 +715,10 @@ ros2 topic echo /fmu/battery/status
 ### Monitor Connection:
 ```bash
 # Verbose agent
-ros2 run micro_ros_agent micro_ros_agent udp4 --port 8888 -v6
+ros2 run micro_ros_agent micro_ros_agent udp4 --port 2019 -v6
 
 # Network traffic
-sudo tcpdump -i lo -n udp port 8888
+sudo tcpdump -i lo -n udp port 2019
 ```
 
 ### Debug:
@@ -728,7 +728,7 @@ echo $ROS_DOMAIN_ID
 ros2 doctor
 
 # Check network
-netstat -uln | grep 8888
+netstat -uln | grep 2019
 ```
 
 ---

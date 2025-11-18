@@ -59,7 +59,7 @@ if [ $? -eq 0 ]; then
     echo "     source ~/ros2_ws/install/setup.bash"
     echo ""
     echo "  2. Run the agent:"
-    echo "     ros2 run micro_ros_agent micro_ros_agent udp4 --port 8888"
+    echo "     ros2 run micro_ros_agent micro_ros_agent udp4 --port 2019"
     echo ""
     echo "  3. Check for ArduPilot topics:"
     echo "     ros2 topic list"

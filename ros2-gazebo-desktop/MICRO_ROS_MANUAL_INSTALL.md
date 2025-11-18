@@ -216,7 +216,7 @@ source ~/ros2_ws/src/fastdds_ws/install/setup.bash  # if using custom Fast DDS
 source ~/ros2_ws/install/setup.bash
 
 # Run the agent
-ros2 run micro_ros_agent micro_ros_agent udp4 --port 8888
+ros2 run micro_ros_agent micro_ros_agent udp4 --port 2019
 
 # In another terminal, test with a micro-ROS client if available
 ```

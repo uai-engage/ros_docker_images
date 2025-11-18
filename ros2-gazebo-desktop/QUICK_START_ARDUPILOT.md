@@ -63,7 +63,7 @@ sim_vehicle.py -v ArduCopter -A "--serial3=uart:127.0.0.1:2019"
 ```bash
 source /opt/ros/jazzy/setup.bash
 source ~/ros2_ws/install/setup.bash  # if built from source
-ros2 run micro_ros_agent micro_ros_agent udp4 --port 8888
+ros2 run micro_ros_agent micro_ros_agent udp4 --port 2019
 ```
 
 ## Verify It Works
@@ -88,7 +88,7 @@ ros2 topic echo /fmu/battery/status
 ArduPilot Container          ROS 2 Container
 (host network)              (host network)
      |                           |
-     | UDP 127.0.0.1:8888       |
+     | UDP 127.0.0.1:2019       |
      |-------------------------->|
      |  micro-XRCE-DDS          | micro-ROS Agent
      |                           |    ↓ (converts to DDS)
@@ -100,12 +100,12 @@ ArduPilot Container          ROS 2 Container
 **No topics?**
 - Check agent is running: `ros2 run micro_ros_agent ...` should show "session established"
 - Check ArduPilot params: `SERIAL3_PROTOCOL = 45` and `DDS_ENABLE = 1`
-- Verify network: `sudo tcpdump -i lo -n udp port 8888`
+- Verify network: `sudo tcpdump -i lo -n udp port 2019`
 
 **Connection drops?**
 ```bash
 # Use verbose mode to debug
-ros2 run micro_ros_agent micro_ros_agent udp4 --port 8888 -v6
+ros2 run micro_ros_agent micro_ros_agent udp4 --port 2019 -v6
 ```
 
 ## Full Documentation
