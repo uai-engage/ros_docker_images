@@ -58,6 +58,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     iputils-ping \
     dbus-x11 \
     at-spi2-core \
+    # Fast DDS for micro-ROS agent
+    libfastcdr-dev \
+    libfastrtps-dev \
+    fastrtps-tools \
     # Fonts
     fonts-dejavu \
     fonts-liberation \
@@ -97,6 +101,20 @@ RUN echo "source /opt/ros/jazzy/setup.bash" >> /home/$USERNAME/.bashrc \
 # Create workspace
 RUN mkdir -p /home/$USERNAME/ros2_ws/src \
     && chown -R $USERNAME:$USERNAME /home/$USERNAME/ros2_ws
+
+# Build micro-ROS agent from source for ArduPilot DDS
+RUN cd /home/$USERNAME/ros2_ws \
+    && git clone https://github.com/micro-ROS/micro-ROS-Agent.git src/micro-ROS-Agent \
+    && chown -R $USERNAME:$USERNAME /home/$USERNAME/ros2_ws/src/micro-ROS-Agent
+
+# Switch to user and build
+USER $USERNAME
+RUN cd /home/$USERNAME/ros2_ws \
+    && . /opt/ros/jazzy/setup.sh \
+    && export CMAKE_PREFIX_PATH=/opt/ros/jazzy:$CMAKE_PREFIX_PATH \
+    && colcon build --packages-select micro_ros_agent --cmake-args -DUAGENT_BUILD_EXECUTABLE=OFF \
+    && echo "source /home/$USERNAME/ros2_ws/install/setup.bash" >> /home/$USERNAME/.bashrc
+USER root
 
 # Setup VNC directory
 RUN mkdir -p /home/$USERNAME/.vnc /home/$USERNAME/.config \
