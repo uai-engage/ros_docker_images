@@ -104,11 +104,12 @@ RUN mkdir -p /home/$USERNAME/.vnc /home/$USERNAME/.config \
 
 # Create desktop shortcuts for ROS 2 tools
 RUN mkdir -p /home/$USERNAME/Desktop \
-    && echo '[Desktop Entry]\nVersion=1.0\nType=Application\nName=Terminal\nExec=xfce4-terminal\nIcon=utilities-terminal\nTerminal=false' > /home/$USERNAME/Desktop/terminal.desktop \
-    && echo '[Desktop Entry]\nVersion=1.0\nType=Application\nName=Gazebo\nExec=bash -c "source /opt/ros/jazzy/setup.bash && gz sim"\nIcon=gazebo\nTerminal=false' > /home/$USERNAME/Desktop/gazebo.desktop \
-    && echo '[Desktop Entry]\nVersion=1.0\nType=Application\nName=RViz2\nExec=bash -c "source /opt/ros/jazzy/setup.bash && rviz2"\nIcon=rviz\nTerminal=false' > /home/$USERNAME/Desktop/rviz2.desktop \
-    && echo '[Desktop Entry]\nVersion=1.0\nType=Application\nName=RQt\nExec=bash -c "source /opt/ros/jazzy/setup.bash && rqt"\nIcon=rqt\nTerminal=false' > /home/$USERNAME/Desktop/rqt.desktop \
+    && echo '[Desktop Entry]\nVersion=1.0\nType=Application\nName=Terminal\nExec=xfce4-terminal\nIcon=utilities-terminal\nTerminal=false\nCategories=System;' > /home/$USERNAME/Desktop/terminal.desktop \
+    && echo '[Desktop Entry]\nVersion=1.0\nType=Application\nName=Gazebo\nExec=bash -c "source /opt/ros/jazzy/setup.bash && gz sim"\nIcon=gazebo\nTerminal=false\nCategories=Development;' > /home/$USERNAME/Desktop/gazebo.desktop \
+    && echo '[Desktop Entry]\nVersion=1.0\nType=Application\nName=RViz2\nExec=bash -c "source /opt/ros/jazzy/setup.bash && rviz2"\nIcon=rviz\nTerminal=false\nCategories=Development;' > /home/$USERNAME/Desktop/rviz2.desktop \
+    && echo '[Desktop Entry]\nVersion=1.0\nType=Application\nName=RQt\nExec=bash -c "source /opt/ros/jazzy/setup.bash && rqt"\nIcon=rqt\nTerminal=false\nCategories=Development;' > /home/$USERNAME/Desktop/rqt.desktop \
     && chmod +x /home/$USERNAME/Desktop/*.desktop \
+    && chmod 755 /home/$USERNAME/Desktop/*.desktop \
     && chown -R $USERNAME:$USERNAME /home/$USERNAME/Desktop
 
 # Create Fast DDS configuration for better network discovery

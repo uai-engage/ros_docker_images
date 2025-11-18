@@ -33,14 +33,17 @@ source /opt/ros/jazzy/setup.bash
 # Start XFCE desktop
 startxfce4 &
 
-# Wait for desktop to initialize
-sleep 3
+# Wait for desktop to initialize properly
+sleep 5
 
-# Trust desktop shortcuts
+# Trust desktop shortcuts (mark as executable and trusted)
 if [ -d ~/Desktop ]; then
     for file in ~/Desktop/*.desktop; do
         if [ -f "$file" ]; then
+            chmod +x "$file" 2>/dev/null || true
             gio set "$file" metadata::trusted true 2>/dev/null || true
+            # Alternative method for older systems
+            xattr -w user.xdg.origin.url "file://$file" "$file" 2>/dev/null || true
         fi
     done
 fi
