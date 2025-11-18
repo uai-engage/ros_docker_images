@@ -43,27 +43,23 @@ Complete guide for connecting ArduPilot (running in separate Docker container) t
 
 ## Part 1: micro-ROS Agent Installation
 
-### Option A: Install from APT (Recommended - Try First)
+### Option A: Install from APT ❌ NOT AVAILABLE
 
-This is the simplest approach if the package is available:
+**UPDATE:** `ros-jazzy-micro-ros-agent` is **NOT available** as an apt package.
 
 ```bash
-# Inside ROS 2 container
-sudo apt-get update
+# This will NOT work:
+# sudo apt-get install ros-jazzy-micro-ros-agent
+# Package does not exist for ROS 2 Jazzy
 
-# Search for micro-ROS packages
-apt-cache search micro-ros
-
-# Install if available (for ROS 2 Jazzy)
-sudo apt-get install ros-jazzy-micro-ros-agent
-
-# Verify installation
-ros2 run micro_ros_agent micro_ros_agent --help
+# Available packages (but not the agent):
+# - ros-jazzy-micro-ros-msgs
+# - ros-jazzy-micro-ros-diagnostic-bridge
+# - ros-jazzy-micro-ros-diagnostic-msgs
+# - ros-jazzy-rclc-parameter
 ```
 
-**If this works**, you're done with installation! Skip to Part 2.
-
-**If package not found**, proceed to Option B or C.
+**You must use Option B or C below** to build from source.
 
 ---
 

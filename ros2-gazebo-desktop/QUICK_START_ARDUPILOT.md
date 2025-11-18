@@ -12,21 +12,28 @@
 
 ### 1. Install micro-ROS Agent (ROS Container)
 
-**Try Option A first (easiest):**
-```bash
-sudo apt-get update
-sudo apt-get install ros-jazzy-micro-ros-agent
-```
+**NOTE:** `ros-jazzy-micro-ros-agent` is NOT available as apt package.
+Must build from source:
 
-**If not available, build from source:**
 ```bash
 cd ~/ros2_ws/src
 git clone https://github.com/micro-ROS/micro-ROS-Agent.git
 cd ~/ros2_ws
+
+# Source ROS environment
 source /opt/ros/jazzy/setup.bash
-colcon build --packages-select micro_ros_agent
+
+# Build (will use ROS Jazzy's built-in Fast DDS)
+colcon build --packages-select micro_ros_agent --cmake-args -DCMAKE_BUILD_TYPE=Release
+
+# Source the workspace
 source install/setup.bash
+
+# Verify
+ros2 run micro_ros_agent micro_ros_agent --help
 ```
+
+**Build time:** ~2-3 minutes
 
 ### 2. Configure ArduPilot (ArduPilot Container)
 
