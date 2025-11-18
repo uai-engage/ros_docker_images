@@ -119,27 +119,13 @@ RUN cd /home/$USERNAME/ros2_ws/src/fastdds_ws \
     && colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
 USER root
 
-# Clone micro-ROS agent
-RUN cd /home/$USERNAME/ros2_ws/src \
-    && git clone https://github.com/micro-ROS/micro-ROS-Agent.git \
-    && chown -R $USERNAME:$USERNAME /home/$USERNAME/ros2_ws/src/micro-ROS-Agent
+# NOTE: micro-ROS agent installation removed for now
+# Will be tested manually in running container, then added back once working
+# Custom Fast DDS above is kept for future micro-ROS agent installation
 
-# Build micro-ROS agent as user (use only custom Fast DDS, not ROS Fast DDS)
+# Add Fast DDS workspace sourcing to bashrc (ROS already sourced above at line 94)
 USER $USERNAME
-RUN cd /home/$USERNAME/ros2_ws \
-    && . /opt/ros/jazzy/setup.sh \
-    && . src/fastdds_ws/install/setup.sh \
-    && colcon build --packages-select micro_ros_agent \
-       --cmake-args \
-         -DCMAKE_BUILD_TYPE=Release \
-         -DCMAKE_FIND_PACKAGE_PREFER_CONFIG=ON \
-         -Dfastrtps_DIR=/home/$USERNAME/ros2_ws/src/fastdds_ws/install/fastrtps/share/fastrtps/cmake \
-         -Dfastcdr_DIR=/home/$USERNAME/ros2_ws/src/fastdds_ws/install/fastcdr/share/fastcdr/cmake \
-         -Dfoonathan_memory_DIR=/home/$USERNAME/ros2_ws/src/fastdds_ws/install/foonathan_memory_vendor/share/foonathan_memory/cmake
-
-# Add workspace sourcing to bashrc (ROS already sourced above at line 94)
-RUN echo "source /home/$USERNAME/ros2_ws/src/fastdds_ws/install/setup.bash" >> /home/$USERNAME/.bashrc \
-    && echo "source /home/$USERNAME/ros2_ws/install/setup.bash" >> /home/$USERNAME/.bashrc
+RUN echo "source /home/$USERNAME/ros2_ws/src/fastdds_ws/install/setup.bash" >> /home/$USERNAME/.bashrc
 USER root
 
 # Setup VNC directory
