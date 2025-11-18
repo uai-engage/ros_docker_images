@@ -107,11 +107,22 @@ RUN echo "source /opt/ros/jazzy/setup.bash" >> /home/$USERNAME/.bashrc \
 RUN mkdir -p /home/$USERNAME/ros2_ws/src \
     && chown -R $USERNAME:$USERNAME /home/$USERNAME/ros2_ws
 
-# NOTE: Custom Fast DDS build removed
-# ROS 2 Jazzy includes Fast DDS (libfastrtps-dev, libfastcdr-dev)
-# If micro-ROS agent requires specific Fast DDS version during manual testing,
-# it can be built following MICRO_ROS_MANUAL_INSTALL.md Option C
-# This keeps the Docker image smaller and build faster
+# Clone and build micro-ROS agent
+RUN cd /home/$USERNAME/ros2_ws/src \
+    && git clone https://github.com/micro-ROS/micro-ROS-Agent.git \
+    && cd micro-ROS-Agent \
+    && git checkout jazzy \
+    && chown -R $USERNAME:$USERNAME /home/$USERNAME/ros2_ws/src/micro-ROS-Agent
+
+# Build micro-ROS agent as user
+USER $USERNAME
+RUN cd /home/$USERNAME/ros2_ws \
+    && . /opt/ros/jazzy/setup.sh \
+    && colcon build --packages-select micro_ros_agent --cmake-args -DCMAKE_BUILD_TYPE=Release
+
+# Add micro-ROS workspace sourcing to bashrc (ROS already sourced above at line 94)
+RUN echo "source /home/$USERNAME/ros2_ws/install/setup.bash" >> /home/$USERNAME/.bashrc
+USER root
 
 # Setup VNC directory
 RUN mkdir -p /home/$USERNAME/.vnc /home/$USERNAME/.config \
