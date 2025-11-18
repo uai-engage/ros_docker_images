@@ -28,6 +28,14 @@ else
 fi
 
 echo ""
+echo "Installing micro-ROS dependencies..."
+sudo apt-get update -qq
+sudo apt-get install -y \
+    ros-jazzy-micro-ros-msgs \
+    ros-jazzy-micro-ros-diagnostic-msgs \
+    ros-jazzy-micro-ros-diagnostic-bridge
+
+echo ""
 echo "Sourcing ROS environment..."
 source /opt/ros/jazzy/setup.bash
 

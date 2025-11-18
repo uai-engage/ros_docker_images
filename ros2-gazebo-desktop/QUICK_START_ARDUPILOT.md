@@ -16,20 +16,28 @@
 Must build from source:
 
 ```bash
+# 1. Install dependencies
+sudo apt-get update
+sudo apt-get install -y \
+    ros-jazzy-micro-ros-msgs \
+    ros-jazzy-micro-ros-diagnostic-msgs \
+    ros-jazzy-micro-ros-diagnostic-bridge
+
+# 2. Clone and build
 cd ~/ros2_ws/src
 git clone https://github.com/micro-ROS/micro-ROS-Agent.git
 cd ~/ros2_ws
 
-# Source ROS environment
+# 3. Source ROS environment
 source /opt/ros/jazzy/setup.bash
 
-# Build (will use ROS Jazzy's built-in Fast DDS)
+# 4. Build (will use ROS Jazzy's built-in Fast DDS)
 colcon build --packages-select micro_ros_agent --cmake-args -DCMAKE_BUILD_TYPE=Release
 
-# Source the workspace
+# 5. Source the workspace
 source install/setup.bash
 
-# Verify
+# 6. Verify
 ros2 run micro_ros_agent micro_ros_agent --help
 ```
 
