@@ -103,30 +103,11 @@ RUN echo "source /opt/ros/jazzy/setup.bash" >> /home/$USERNAME/.bashrc \
 RUN mkdir -p /home/$USERNAME/ros2_ws/src \
     && chown -R $USERNAME:$USERNAME /home/$USERNAME/ros2_ws
 
-# Build Fast DDS from source (required for micro-ROS agent)
-RUN cd /home/$USERNAME/ros2_ws \
-    && mkdir -p src/fastdds_ws/src \
-    && cd src/fastdds_ws/src \
-    && git clone https://github.com/eProsima/foonathan_memory_vendor.git \
-    && git clone https://github.com/eProsima/Fast-CDR.git \
-    && git clone https://github.com/eProsima/Fast-DDS.git \
-    && chown -R $USERNAME:$USERNAME /home/$USERNAME/ros2_ws/src/fastdds_ws
-
-# Build Fast DDS as user
-USER $USERNAME
-RUN cd /home/$USERNAME/ros2_ws/src/fastdds_ws \
-    && . /opt/ros/jazzy/setup.sh \
-    && colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
-USER root
-
-# NOTE: micro-ROS agent installation removed for now
-# Will be tested manually in running container, then added back once working
-# Custom Fast DDS above is kept for future micro-ROS agent installation
-
-# Add Fast DDS workspace sourcing to bashrc (ROS already sourced above at line 94)
-USER $USERNAME
-RUN echo "source /home/$USERNAME/ros2_ws/src/fastdds_ws/install/setup.bash" >> /home/$USERNAME/.bashrc
-USER root
+# NOTE: Custom Fast DDS build removed
+# ROS 2 Jazzy includes Fast DDS (libfastrtps-dev, libfastcdr-dev)
+# If micro-ROS agent requires specific Fast DDS version during manual testing,
+# it can be built following MICRO_ROS_MANUAL_INSTALL.md Option C
+# This keeps the Docker image smaller and build faster
 
 # Setup VNC directory
 RUN mkdir -p /home/$USERNAME/.vnc /home/$USERNAME/.config \
