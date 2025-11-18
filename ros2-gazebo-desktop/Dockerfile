@@ -61,7 +61,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Fast DDS for micro-ROS agent
     libfastcdr-dev \
     libfastrtps-dev \
-    fastrtps-tools \
     # Fonts
     fonts-dejavu \
     fonts-liberation \
