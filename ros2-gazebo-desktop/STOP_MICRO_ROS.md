@@ -132,13 +132,15 @@ sudo systemctl disable micro-ros-agent
 
 | Scenario | Command |
 |----------|---------|
-| **Foreground** | `Ctrl+C` |
-| **Background (any)** | `pkill -f micro_ros_agent` |
-| **By PID** | `kill <PID>` |
-| **Force kill** | `pkill -9 -f micro_ros_agent` |
-| **tmux session** | `tmux kill-session -t micro_ros_agent` |
-| **screen session** | `screen -S micro_ros -X quit` |
-| **systemd service** | `sudo systemctl stop micro-ros-agent` |
+| **Foreground** | `Ctrl+C` then `ros2 daemon stop && ros2 daemon start` |
+| **Background (any)** | `pkill -f micro_ros_agent` then clear cache |
+| **By PID** | `kill <PID>` then clear cache |
+| **Force kill** | `pkill -9 -f micro_ros_agent` then clear cache |
+| **tmux session** | `tmux kill-session -t micro_ros_agent` then clear cache |
+| **screen session** | `screen -S micro_ros -X quit` then clear cache |
+| **systemd service** | `sudo systemctl stop micro-ros-agent` then clear cache |
+| **Clear DDS cache** | `ros2 daemon stop && ros2 daemon start` |
+| **Complete cleanup** | `pkill -f micro_ros_agent && ros2 daemon stop && ros2 daemon start` |
 
 ---
 
@@ -154,6 +156,64 @@ ps aux | grep micro_ros_agent
 netstat -tulpn | grep 2019
 
 # Should show nothing if agent stopped
+```
+
+---
+
+## Clear Ghost Topics (IMPORTANT!)
+
+After stopping micro-ROS agent, topics may still appear in `ros2 topic list` even though the agent is stopped. This is due to **ROS 2 DDS discovery cache**.
+
+### Problem: Ghost Topics Remain
+
+```bash
+# Agent stopped but topics still show
+ros2 topic list
+# /fmu/battery/status  ← Still here!
+# /fmu/gps/position    ← Ghost topics!
+# /fmu/imu/data
+
+# Try to echo - no data comes through
+ros2 topic echo /fmu/battery/status
+# (nothing - no messages)
+```
+
+### Solution: Restart ROS 2 Daemon
+
+```bash
+# Stop the ROS 2 daemon (clears DDS cache)
+ros2 daemon stop
+
+# Start it again
+ros2 daemon start
+
+# Verify topics are gone
+ros2 topic list
+# Should only show /parameter_events and /rosout if no other nodes running
+```
+
+### Why This Happens
+
+1. ROS 2 uses DDS (Data Distribution Service) for discovery
+2. When micro-ROS agent publishes topics, they're registered in DDS
+3. Ctrl+C stops the process but doesn't always clean up DDS registration
+4. DDS daemon caches topic information
+5. Topics appear even though publisher is gone (ghost topics)
+
+### Complete Stop Procedure
+
+```bash
+# 1. Stop the agent
+pkill -f micro_ros_agent
+
+# 2. Clear DDS cache
+ros2 daemon stop
+ros2 daemon start
+
+# 3. Verify everything clean
+ps aux | grep micro_ros_agent  # Should show nothing
+ros2 topic list                 # Should show no /fmu/* topics
+netstat -tulpn | grep 2019      # Should show nothing
 ```
 
 ---
@@ -199,50 +259,90 @@ ps aux | grep micro_ros_agent
 
 ## Graceful Shutdown Script
 
-Create a helper script:
+Create a helper script that stops the agent AND clears DDS cache:
 
 ```bash
 #!/bin/bash
 # stop_micro_ros.sh
 
-echo "Stopping micro-ROS agent..."
+echo "==========================================="
+echo "  Stopping micro-ROS Agent & Clearing Cache"
+echo "==========================================="
+echo ""
 
 # Find PID
 PID=$(pgrep -f micro_ros_agent)
 
 if [ -z "$PID" ]; then
-    echo "micro-ROS agent is not running"
-    exit 0
-fi
-
-echo "Found PID: $PID"
-
-# Try graceful shutdown
-kill $PID
-sleep 2
-
-# Check if still running
-if pgrep -f micro_ros_agent > /dev/null; then
-    echo "Process still running, forcing shutdown..."
-    pkill -9 -f micro_ros_agent
-    sleep 1
-fi
-
-# Verify stopped
-if pgrep -f micro_ros_agent > /dev/null; then
-    echo "ERROR: Failed to stop micro-ROS agent"
-    exit 1
+    echo "✓ micro-ROS agent is not running"
 else
-    echo "micro-ROS agent stopped successfully"
-    exit 0
+    echo "Found micro-ROS agent PID: $PID"
+
+    # Try graceful shutdown
+    echo "Stopping agent gracefully..."
+    kill $PID
+    sleep 2
+
+    # Check if still running
+    if pgrep -f micro_ros_agent > /dev/null; then
+        echo "Process still running, forcing shutdown..."
+        pkill -9 -f micro_ros_agent
+        sleep 1
+    fi
+
+    # Verify stopped
+    if pgrep -f micro_ros_agent > /dev/null; then
+        echo "✗ ERROR: Failed to stop micro-ROS agent"
+        exit 1
+    else
+        echo "✓ micro-ROS agent stopped"
+    fi
 fi
+
+# Clear ROS 2 DDS cache (removes ghost topics)
+echo ""
+echo "Clearing ROS 2 DDS discovery cache..."
+ros2 daemon stop
+sleep 1
+ros2 daemon start
+sleep 1
+
+echo ""
+echo "Verifying cleanup..."
+
+# Check topics
+TOPICS=$(ros2 topic list 2>/dev/null | grep -c "/fmu/")
+if [ "$TOPICS" -eq 0 ]; then
+    echo "✓ Ghost topics cleared"
+else
+    echo "✗ Warning: $TOPICS /fmu/ topics still present"
+fi
+
+# Check port
+if netstat -tuln 2>/dev/null | grep -q ":2019"; then
+    echo "✗ Warning: Port 2019 still in use"
+else
+    echo "✓ Port 2019 is free"
+fi
+
+echo ""
+echo "==========================================="
+echo "  Cleanup Complete!"
+echo "==========================================="
+exit 0
 ```
 
-Make it executable:
+Make it executable and use it:
 ```bash
 chmod +x stop_micro_ros.sh
 ./stop_micro_ros.sh
 ```
+
+This script:
+- ✅ Stops micro-ROS agent (graceful then force if needed)
+- ✅ Clears ROS 2 DDS cache (removes ghost topics)
+- ✅ Verifies cleanup
+- ✅ Reports status
 
 ---
 
