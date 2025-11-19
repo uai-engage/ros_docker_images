@@ -3,34 +3,125 @@
 
 Complete Docker-based development environment for PX4 and ArduPilot with ROS 2 Jazzy, featuring a ground station with GUI and a companion computer for flight controller communication.
 
+## 🎯 Quick Start - Which Setup Do You Need?
+
+### ⚡ For Development/Testing (Most Users Start Here)
+
+**Use:** `docker-compose-simple.yml` - **Single Container**
+
+```bash
+# Start single container with everything
+docker compose -f docker-compose-simple.yml up -d
+
+# Access VNC: http://localhost:6080/vnc.html
+```
+
+**You get:**
+- ✅ Full desktop GUI (Gazebo, RViz2, RQt)
+- ✅ micro-ROS agent for PX4
+- ✅ MAVROS2 for ArduPilot
+- ✅ px4_msgs package
+- ✅ All tools in one container
+
+**Use this for:**
+- Local development on your laptop/desktop
+- PX4 SITL testing
+- ArduPilot SITL testing
+- Hardware flight controller via USB/Serial
+- Learning and experimentation
+
+### 🚁 For Production/Hardware Deployment
+
+**Use:** `docker-compose-px4.yml` - **Dual Container**
+
+```bash
+# Start both containers
+docker compose -f docker-compose-px4.yml up -d
+```
+
+**You get:**
+- Ground Station (your laptop) + Companion (onboard computer)
+- Automatic ROS 2 topic bridging via network
+- Separation of GUI and flight controller communication
+
+**Use this for:**
+- Onboard computer on drone (Raspberry Pi, Jetson, etc.)
+- Production deployment
+- Simulating real system architecture
+- Remote operation over WiFi/Network
+
+---
+
 ## 🏗️ Architecture Overview
 
+### Single Container Setup (Development)
+
+**File:** `docker-compose-simple.yml`
+
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    Your Development Machine                  │
-│  ┌──────────────────────────┐  ┌──────────────────────────┐ │
-│  │   Ground Station         │  │  Companion Computer       │ │
-│  │   Container              │  │  Container                │ │
-│  │                          │  │                           │ │
-│  │  • Gazebo Harmonic       │  │  • micro-ROS Agent (PX4)  │ │
-│  │  • RViz2                 │  │  • MAVROS2 (ArduPilot)    │ │
-│  │  • VNC Desktop (XFCE)    │  │  • px4_msgs               │ │
-│  │  • px4_msgs              │  │  • Serial/UDP FC comm     │ │
-│  │  • MAVROS2               │  │                           │ │
-│  │                          │  │                           │ │
-│  └──────────┬───────────────┘  └─────────┬─────────────────┘ │
-│             │                            │                   │
-│             └────────── ROS 2 DDS ───────┘                   │
-│                    (Host Network)                            │
-│                                                               │
-│                           ▼                                  │
-│                  ┌─────────────────┐                         │
-│                  │  Flight Controller│                       │
-│                  │  • PX4 Autopilot  │                       │
-│                  │  • ArduPilot      │                       │
-│                  └─────────────────┘                         │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────┐
+│          Your Development Machine / Laptop          │
+│                                                     │
+│  ┌─────────────────────────────────────────────┐   │
+│  │   ROS 2 Development Container               │   │
+│  │   (ros2_dev_station)                        │   │
+│  │                                             │   │
+│  │  ✅ Gazebo Harmonic                         │   │
+│  │  ✅ RViz2, RQt                              │   │
+│  │  ✅ VNC Desktop (XFCE)                      │   │
+│  │  ✅ micro-ROS Agent (for PX4)               │   │
+│  │  ✅ MAVROS2 (for ArduPilot)                 │   │
+│  │  ✅ px4_msgs                                │   │
+│  │  ✅ Fast DDS                                │   │
+│  │                                             │   │
+│  │  All ROS 2 tools available locally          │   │
+│  └──────────────────┬──────────────────────────┘   │
+│                     │                              │
+│                     │ UDP/Serial/USB               │
+│                     ▼                              │
+│            ┌─────────────────┐                     │
+│            │ Flight Controller│                    │
+│            │  • PX4 (SITL/HW) │                    │
+│            │  • ArduPilot     │                    │
+│            └─────────────────┘                     │
+│                                                     │
+│  Access: http://localhost:6080/vnc.html            │
+└─────────────────────────────────────────────────────┘
 ```
+
+**All in one container** - micro-ROS agent runs inside, publishes topics locally. Perfect for development!
+
+### Dual Container Setup (Production)
+
+**File:** `docker-compose-px4.yml`
+
+```
+┌────────────────────────┐         ┌─────────────────────────┐
+│   Onboard Computer     │         │   Ground Station        │
+│   (Raspberry Pi, etc)  │  WiFi/  │   (Your Laptop)         │
+│                        │ Network │                         │
+│  ┌──────────────────┐  │  ROS2   │  ┌───────────────────┐  │
+│  │ Companion        │  │ Topics  │  │ Desktop Container │  │
+│  │ Container        │◄─┼────────►┼─►│                   │  │
+│  │                  │  │         │  │ • Gazebo          │  │
+│  │ • micro-ROS      │  │         │  │ • RViz2           │  │
+│  │   Agent          │  │         │  │ • VNC Desktop     │  │
+│  │ • MAVROS2        │  │         │  │ • px4_msgs        │  │
+│  │ • px4_msgs       │  │         │  │ • MAVROS2         │  │
+│  │                  │  │         │  │ • Monitoring      │  │
+│  └────────┬─────────┘  │         │  └───────────────────┘  │
+│           │            │         │                         │
+│           │ USB/Serial │         │  VNC: :6080             │
+│           ▼            │         └─────────────────────────┘
+│  ┌─────────────────┐   │
+│  │ Flight Ctrl (HW)│   │
+│  │  • PX4          │   │
+│  │  • ArduPilot    │   │
+│  └─────────────────┘   │
+└────────────────────────┘
+```
+
+**Separate containers** - Companion on drone, Ground on laptop. Topics automatically bridge via ROS 2 DDS.
 
 ## 📦 What's Included
 
@@ -51,54 +142,281 @@ Complete Docker-based development environment for PX4 and ArduPilot with ROS 2 J
 - **Fast DDS** - Built from source for compatibility
 - **Serial device access** - Direct FC connection support
 
-## 🚀 Quick Start
+## 🧪 Complete Testing Guide
 
-### 1. Clone and Setup
+### Test Setup 1: Single Container (Development) - Recommended First
+
+**What you need:** Just your computer + this Docker setup
+
+**Steps:**
+
+```bash
+# 1. Navigate to directory
+cd ros2-gazebo-desktop/
+
+# 2. Build the container
+docker compose -f docker-compose-simple.yml build
+
+# 3. Start the container
+docker compose -f docker-compose-simple.yml up -d
+
+# 4. Access VNC in browser
+# Open: http://localhost:6080/vnc.html
+# Password: rospassword
+```
+
+**Testing PX4 (SITL):**
+
+```bash
+# Terminal 1: Start PX4 SITL (outside container, on your host)
+cd ~/PX4-Autopilot
+make px4_sitl gz_x500
+
+# Wait for PX4 to start, you'll see:
+# "INFO [simulator_mavlink] Waiting for simulator to accept connection on TCP port 4560"
+
+# Terminal 2: Inside VNC desktop or via docker exec
+docker exec -it ros2_dev_station bash
+
+# Start micro-ROS agent
+source /home/rosuser/ros2_ws/src/fastdds_ws/install/setup.bash
+source /home/rosuser/ros2_ws/install/setup.bash
+micro-ros-agent udp4 -p 8888
+
+# You should see: "Micro XRCE-DDS Agent running..."
+
+# Terminal 3: Inside VNC desktop (open new terminal in VNC)
+# Or another docker exec:
+docker exec -it ros2_dev_station bash
+
+# Verify topics
+ros2 topic list | grep fmu
+# You should see: /fmu/out/vehicle_status, /fmu/out/vehicle_local_position, etc.
+
+# Echo a topic
+ros2 topic echo /fmu/out/vehicle_status
+
+# Success! You're receiving PX4 messages
+```
+
+**Testing ArduPilot (SITL):**
+
+```bash
+# Terminal 1: Start ArduPilot SITL (outside container, on your host)
+cd ~/ardupilot
+./Tools/autotest/sim_vehicle.py -v ArduCopter --console --map
+
+# Wait for ArduPilot to start broadcasting MAVLink on UDP :14550
+
+# Terminal 2: Inside VNC or docker exec
+docker exec -it ros2_dev_station bash
+
+# Start MAVROS2
+ros2 launch mavros apm.launch fcu_url:=udp://:14550@
+
+# You should see: "FCU: Connected to UDP:..."
+
+# Terminal 3: Verify MAVROS topics
+docker exec -it ros2_dev_station bash
+
+ros2 topic list | grep mavros
+# You should see: /mavros/state, /mavros/battery, /mavros/imu/data, etc.
+
+ros2 topic echo /mavros/state
+
+# Success! You're receiving ArduPilot messages via MAVROS2
+```
+
+**What containers are running:**
+```bash
+docker ps
+# You should see: ros2_dev_station (1 container only)
+```
+
+---
+
+### Test Setup 2: Dual Container (Production Simulation)
+
+**What you need:** This simulates onboard + ground station on same machine
+
+**Steps:**
+
+```bash
+# 1. Navigate to directory
+cd ros2-gazebo-desktop/
+
+# 2. Copy environment template
+cp .env.px4 .env
+
+# 3. Build both containers
+docker compose -f docker-compose-px4.yml build
+
+# 4. Start both containers
+docker compose -f docker-compose-px4.yml up -d
+
+# 5. Verify both running
+docker ps
+# You should see:
+#   - ros2_ground_station
+#   - ros2_companion
+```
+
+**Testing PX4 (SITL) with Dual Containers:**
+
+```bash
+# Terminal 1: Start PX4 SITL (on host)
+cd ~/PX4-Autopilot
+make px4_sitl gz_x500
+
+# Terminal 2: Start micro-ROS agent in COMPANION container
+docker exec -it ros2_companion bash
+source /home/rosuser/ros2_ws/src/fastdds_ws/install/setup.bash
+source /home/rosuser/ros2_ws/install/setup.bash
+micro-ros-agent udp4 -p 8888
+
+# You should see: "Micro XRCE-DDS Agent running..."
+
+# Terminal 3: Verify topics in GROUND STATION container
+docker exec -it ros2_ground_station bash
+ros2 topic list | grep fmu
+# You should see PX4 topics here!
+
+ros2 topic echo /fmu/out/vehicle_status
+
+# Success! Topics from companion are visible in ground station
+# This proves ROS 2 DDS discovery works between containers
+```
+
+**Access Ground Station GUI:**
+```
+http://localhost:6080/vnc.html
+Password: rospassword
+
+# Inside VNC, open terminal:
+ros2 topic list
+rviz2  # Visualize PX4 topics
+```
+
+**What containers are running:**
+```bash
+docker ps
+# You should see:
+#   - ros2_ground_station (ports 5901, 6080)
+#   - ros2_companion (no exposed ports, host network)
+```
+
+**How it works:**
+```
+PX4 SITL (host) → UDP:8888 → micro-ROS agent (companion container)
+                              ↓ ROS 2 DDS topics
+                              ↓ (auto-discovered via host network)
+                              ↓
+                         Ground Station Container
+                         (ros2 topic echo works!)
+```
+
+---
+
+### Test Setup 3: Hardware Flight Controller
+
+**What you need:** Real PX4/ArduPilot board + USB cable
+
+**For PX4 Hardware:**
+
+```bash
+# 1. Connect PX4 via USB to your computer
+# 2. Verify serial port
+ls -l /dev/ttyUSB* /dev/ttyACM*
+# Example output: /dev/ttyUSB0 or /dev/ttyACM0
+
+# 3. Start single container (easier for hardware testing)
+docker compose -f docker-compose-simple.yml up -d
+
+# 4. Set PX4 parameters (via QGroundControl or console)
+# XRCE_DDS_0_CFG = 1  (Serial mode)
+# SER_TEL2_BAUD = 921600
+
+# 5. Start micro-ROS agent with serial
+docker exec -it ros2_dev_station bash
+micro-ros-agent serial --dev /dev/ttyUSB0 -b 921600
+
+# 6. Verify topics
+ros2 topic list | grep fmu
+ros2 topic echo /fmu/out/vehicle_status
+```
+
+**For ArduPilot Hardware:**
+
+```bash
+# 1. Connect ArduPilot via USB
+# 2. Verify serial port
+ls -l /dev/ttyUSB* /dev/ttyACM*
+
+# 3. Start container
+docker compose -f docker-compose-simple.yml up -d
+
+# 4. Start MAVROS2 with serial
+docker exec -it ros2_dev_station bash
+ros2 launch mavros apm.launch fcu_url:=/dev/ttyUSB0:921600
+
+# 5. Verify topics
+ros2 topic list | grep mavros
+ros2 topic echo /mavros/state
+```
+
+---
+
+### Decision Matrix: Which Setup to Use?
+
+| Scenario | Container Setup | micro-ROS/MAVROS Runs In | Command |
+|----------|----------------|-------------------------|---------|
+| **Development** | Single | Ground station | `docker-compose-simple.yml` |
+| **PX4 SITL** | Single | Ground station | `docker-compose-simple.yml` |
+| **ArduPilot SITL** | Single | Ground station | `docker-compose-simple.yml` |
+| **Hardware FC (USB)** | Single | Ground station | `docker-compose-simple.yml` |
+| **Onboard Computer** | Dual | Companion | `docker-compose-px4.yml` |
+| **Production Drone** | Dual | Companion | `docker-compose-px4.yml` |
+| **Testing Dual Setup** | Dual | Companion | `docker-compose-px4.yml` |
+
+**Rule of Thumb:**
+- 🟢 **Single container** = Everything on one machine
+- 🔵 **Dual container** = Separate onboard + ground computers
+
+---
+
+## 🚀 Quick Start Reference
+
+### Single Container Setup
 
 ```bash
 cd ros2-gazebo-desktop/
+docker compose -f docker-compose-simple.yml build
+docker compose -f docker-compose-simple.yml up -d
 
-# Copy environment template
+# Access VNC: http://localhost:6080/vnc.html (password: rospassword)
+
+# Run micro-ROS agent inside:
+docker exec -it ros2_dev_station bash
+micro-ros-agent udp4 -p 8888
+```
+
+### Dual Container Setup
+
+```bash
+cd ros2-gazebo-desktop/
 cp .env.px4 .env
-
-# Edit configuration (optional)
-nano .env
-```
-
-### 2. Build Images
-
-```bash
-# Build both containers
 docker compose -f docker-compose-px4.yml build
-
-# Or build individually
-docker compose -f docker-compose-px4.yml build ground-station
-docker compose -f docker-compose-px4.yml build companion
-```
-
-### 3. Start Containers
-
-```bash
-# Start both containers
 docker compose -f docker-compose-px4.yml up -d
 
-# Or start individually
-docker compose -f docker-compose-px4.yml up -d ground-station
-docker compose -f docker-compose-px4.yml up -d companion
-```
+# Access VNC: http://localhost:6080/vnc.html
 
-### 4. Access Ground Station
+# Run micro-ROS agent in companion:
+docker exec -it ros2_companion bash
+micro-ros-agent udp4 -p 8888
 
-**Via Web Browser (noVNC):**
-```
-http://localhost:6080/vnc.html
-Password: rospassword (or your VNC_PASSWORD)
-```
-
-**Via VNC Client:**
-```
-Host: localhost:5901
-Password: rospassword (or your VNC_PASSWORD)
+# View topics in ground station (auto-discovered!):
+docker exec -it ros2_ground_station bash
+ros2 topic list
 ```
 
 ## 🔧 Configuration
