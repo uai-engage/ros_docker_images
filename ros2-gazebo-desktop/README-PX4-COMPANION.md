@@ -5,9 +5,9 @@ Complete Docker-based development environment for PX4 and ArduPilot with ROS 2 J
 
 ## 🎯 Quick Start - Which Setup Do You Need?
 
-### ⚡ For Development/Testing (Most Users Start Here)
+### ⚡ Setup 1: Development (Most Users Start Here)
 
-**Use:** `docker-compose-simple.yml` - **Single Container**
+**Use:** `docker-compose-simple.yml` - **Single Container (Ground Station Only)**
 
 ```bash
 # Start single container with everything
@@ -30,25 +30,56 @@ docker compose -f docker-compose-simple.yml up -d
 - Hardware flight controller via USB/Serial
 - Learning and experimentation
 
-### 🚁 For Production/Hardware Deployment
+---
 
-**Use:** `docker-compose-px4.yml` - **Dual Container**
+### 🚁 Setup 2: Production - Dual Container (Both Machines Same Location)
+
+**Use:** `docker-compose-px4.yml` - **Ground Station + Companion**
 
 ```bash
-# Start both containers
+# Start both containers on same machine
 docker compose -f docker-compose-px4.yml up -d
 ```
 
 **You get:**
-- Ground Station (your laptop) + Companion (onboard computer)
-- Automatic ROS 2 topic bridging via network
-- Separation of GUI and flight controller communication
+- Ground Station (GUI, visualization)
+- Companion (FC communication)
+- Automatic ROS 2 topic bridging via host network
+- Separation of concerns for testing
 
 **Use this for:**
-- Onboard computer on drone (Raspberry Pi, Jetson, etc.)
-- Production deployment
+- Testing dual-container architecture on one machine
 - Simulating real system architecture
-- Remote operation over WiFi/Network
+- Development of distributed system
+- Preparing for separate deployment
+
+---
+
+### 🛸 Setup 3: Production - Companion Only (Separate Machines)
+
+**Use:** `docker-compose-companion.yml` - **Companion Computer Only**
+
+```bash
+# On onboard computer (Raspberry Pi, Jetson, etc.)
+cp .env.companion .env
+docker compose -f docker-compose-companion.yml build
+docker compose -f docker-compose-companion.yml up -d
+
+# On ground station (your laptop) - run Setup 1
+docker compose -f docker-compose-simple.yml up -d
+```
+
+**You get:**
+- Lightweight companion on drone/vehicle
+- Ground station on separate laptop
+- ROS 2 topics auto-discovered over WiFi/Network
+- True distributed system
+
+**Use this for:**
+- Real onboard computer deployment (Raspberry Pi, Jetson)
+- Production drone/vehicle
+- Separate ground station and onboard computer
+- Remote operation over network
 
 ---
 
@@ -122,6 +153,42 @@ docker compose -f docker-compose-px4.yml up -d
 ```
 
 **Separate containers** - Companion on drone, Ground on laptop. Topics automatically bridge via ROS 2 DDS.
+
+### Companion Only Setup (Production - Separate Machines)
+
+**File:** `docker-compose-companion.yml`
+
+```
+Machine 1: Onboard Computer          Machine 2: Ground Station
+(Raspberry Pi / Jetson)               (Your Laptop / Desktop)
+┌────────────────────────┐            ┌──────────────────────────┐
+│  Companion Container   │            │  Dev Container           │
+│                        │   WiFi/    │  (docker-compose-        │
+│  • micro-ROS Agent     │◄─Network──►│   simple.yml)            │
+│  • MAVROS2             │   ROS 2    │                          │
+│  • px4_msgs            │   Topics   │  • Gazebo, RViz2         │
+│  • Lightweight         │            │  • VNC Desktop           │
+│                        │            │  • px4_msgs              │
+│  Port: None (host net) │            │  • Full GUI              │
+└───────────┬────────────┘            │                          │
+            │                         │  VNC: :6080              │
+            │ USB/Serial              └──────────────────────────┘
+            ▼
+   ┌─────────────────┐
+   │ Flight Ctrl (HW)│
+   │  • PX4          │
+   │  • ArduPilot    │
+   └─────────────────┘
+```
+
+**Fully distributed** - Companion physically on drone, Ground station on separate laptop. Perfect for real deployments.
+
+**Key Requirements:**
+- Both machines on same network (WiFi/Ethernet)
+- Same `ROS_DOMAIN_ID` on both (default: 0)
+- Network allows UDP multicast (ports 7400-7500)
+- Companion: `docker-compose-companion.yml`
+- Ground: `docker-compose-simple.yml`
 
 ## 📦 What's Included
 
@@ -368,19 +435,20 @@ ros2 topic echo /mavros/state
 
 ### Decision Matrix: Which Setup to Use?
 
-| Scenario | Container Setup | micro-ROS/MAVROS Runs In | Command |
-|----------|----------------|-------------------------|---------|
-| **Development** | Single | Ground station | `docker-compose-simple.yml` |
-| **PX4 SITL** | Single | Ground station | `docker-compose-simple.yml` |
-| **ArduPilot SITL** | Single | Ground station | `docker-compose-simple.yml` |
-| **Hardware FC (USB)** | Single | Ground station | `docker-compose-simple.yml` |
-| **Onboard Computer** | Dual | Companion | `docker-compose-px4.yml` |
-| **Production Drone** | Dual | Companion | `docker-compose-px4.yml` |
-| **Testing Dual Setup** | Dual | Companion | `docker-compose-px4.yml` |
+| Scenario | Container Setup | Where Deployed | Command Files |
+|----------|----------------|----------------|---------------|
+| **Development/Testing** | Single | One machine | `docker-compose-simple.yml` |
+| **PX4 SITL** | Single | One machine | `docker-compose-simple.yml` |
+| **ArduPilot SITL** | Single | One machine | `docker-compose-simple.yml` |
+| **Hardware FC via USB** | Single | One machine | `docker-compose-simple.yml` |
+| **Test Dual Architecture** | Dual (same machine) | One machine | `docker-compose-px4.yml` |
+| **Real Onboard Computer** | Companion only | Separate: Drone + Laptop | Drone: `docker-compose-companion.yml`<br/>Laptop: `docker-compose-simple.yml` |
+| **Production Deployment** | Companion only | Separate: Drone + Laptop | Drone: `docker-compose-companion.yml`<br/>Laptop: `docker-compose-simple.yml` |
 
 **Rule of Thumb:**
-- 🟢 **Single container** = Everything on one machine
-- 🔵 **Dual container** = Separate onboard + ground computers
+- 🟢 **Single container** (`simple.yml`) = Development, everything on laptop
+- 🟡 **Dual container** (`px4.yml`) = Testing distributed architecture on one machine
+- 🔵 **Companion only** (`companion.yml`) = Real deployment, companion on drone + simple on laptop
 
 ---
 
@@ -400,7 +468,7 @@ docker exec -it ros2_dev_station bash
 micro-ros-agent udp4 -p 8888
 ```
 
-### Dual Container Setup
+### Dual Container Setup (Same Machine)
 
 ```bash
 cd ros2-gazebo-desktop/
@@ -418,6 +486,45 @@ micro-ros-agent udp4 -p 8888
 docker exec -it ros2_ground_station bash
 ros2 topic list
 ```
+
+### Companion Only Setup (Separate Machines)
+
+**On Onboard Computer (Raspberry Pi, Jetson):**
+```bash
+cd ros2-gazebo-desktop/
+cp .env.companion .env
+nano .env  # Edit ROS_DOMAIN_ID to match ground station
+
+docker compose -f docker-compose-companion.yml build
+docker compose -f docker-compose-companion.yml up -d
+
+# Run micro-ROS agent (PX4):
+docker exec -it ros2_companion bash
+micro-ros-agent udp4 -p 8888
+
+# Or run MAVROS2 (ArduPilot):
+docker exec -it ros2_companion bash
+ros2 launch mavros apm.launch fcu_url:=/dev/ttyUSB0:921600
+```
+
+**On Ground Station (Your Laptop):**
+```bash
+cd ros2-gazebo-desktop/
+docker compose -f docker-compose-simple.yml build
+docker compose -f docker-compose-simple.yml up -d
+
+# Access VNC: http://localhost:6080/vnc.html
+
+# View topics from companion (auto-discovered over network!):
+docker exec -it ros2_dev_station bash
+ros2 topic list | grep fmu  # See PX4 topics from companion
+ros2 topic echo /fmu/out/vehicle_status
+```
+
+**Network Requirements:**
+- Both machines on same WiFi/Network
+- Same ROS_DOMAIN_ID in both .env files
+- UDP multicast enabled (ports 7400-7500)
 
 ## 🔧 Configuration
 
