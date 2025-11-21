@@ -89,11 +89,15 @@ RUN cd /home/$USERNAME/ros2_ws/src \
     && git clone https://github.com/micro-ROS/micro-ROS-Agent.git \
     && chown -R $USERNAME:$USERNAME /home/$USERNAME/ros2_ws/src/micro-ROS-Agent
 
-# Build micro-ROS agent as user (use only custom Fast DDS, not ROS Fast DDS)
+# Build micro-ROS agent as user (use custom Fast DDS, overlaying ROS 2)
 USER $USERNAME
 RUN cd /home/$USERNAME/ros2_ws \
+    && . /opt/ros/jazzy/setup.sh \
     && . src/fastdds_ws/install/setup.sh \
-    && colcon build --packages-select micro_ros_agent --cmake-args -DCMAKE_BUILD_TYPE=Release -DCMAKE_FIND_PACKAGE_PREFER_CONFIG=ON -DCMAKE_IGNORE_PATH="/opt/ros/jazzy"
+    && colcon build --packages-select micro_ros_agent \
+       --cmake-args \
+         -DCMAKE_BUILD_TYPE=Release \
+         -DCMAKE_PREFIX_PATH="/home/$USERNAME/ros2_ws/src/fastdds_ws/install;/opt/ros/jazzy"
 
 # Clone and build px4_msgs (PX4 message definitions)
 RUN cd /home/$USERNAME/ros2_ws/src \
