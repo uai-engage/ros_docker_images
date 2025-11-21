@@ -88,11 +88,11 @@ RUN cd /home/$USERNAME/ros2_ws/src/fastdds_ws \
     && colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
 USER root
 
-# Clone micro-ROS agent (pinned to v3.0.1 release for stability)
+# Clone micro-ROS agent (pinned to stable release 6.0.0)
 RUN cd /home/$USERNAME/ros2_ws/src \
     && git clone https://github.com/micro-ROS/micro-ROS-Agent.git \
     && cd micro-ROS-Agent \
-    && git checkout 155cfaa \
+    && git checkout 6.0.0 \
     && cd .. \
     && chown -R $USERNAME:$USERNAME /home/$USERNAME/ros2_ws/src/micro-ROS-Agent
 
