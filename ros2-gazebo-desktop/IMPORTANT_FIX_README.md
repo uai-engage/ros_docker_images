@@ -23,7 +23,7 @@ I've **pinned all dependencies to stable versions** that are known to work:
 | **foonathan_memory_vendor** | `v1.3.1` | Stable release |
 | **Fast-CDR** | `v2.2.5` | Stable release |
 | **Fast-DDS** | `v3.1.0` | Last stable before Nov 19 breakage |
-| **micro-ROS-Agent** | `155cfaa` (v3.0.1) | Stable release |
+| **micro-ROS-Agent** | `6.0.0` | Stable release for ROS 2 Jazzy |
 
 ## How to Build Now 🚀
 
