@@ -105,15 +105,13 @@ RUN mkdir -p /home/$USERNAME/ros2_ws/src \
 
 # Build Fast DDS from source (required for micro-ROS agent)
 # Pin to commits before Nov 19, 2025 for stability
+# Use shallow clones to reduce download size and avoid network timeouts
 RUN cd /home/$USERNAME/ros2_ws \
     && mkdir -p src/fastdds_ws/src \
     && cd src/fastdds_ws/src \
-    && git clone https://github.com/eProsima/foonathan_memory_vendor.git \
-    && cd foonathan_memory_vendor && git checkout v1.3.1 && cd .. \
-    && git clone https://github.com/eProsima/Fast-CDR.git \
-    && cd Fast-CDR && git checkout v2.2.5 && cd .. \
-    && git clone https://github.com/eProsima/Fast-DDS.git \
-    && cd Fast-DDS && git checkout v3.1.0 && cd .. \
+    && git clone --depth 1 --branch v1.3.1 https://github.com/eProsima/foonathan_memory_vendor.git \
+    && git clone --depth 1 --branch v2.2.5 https://github.com/eProsima/Fast-CDR.git \
+    && git clone --depth 1 --branch v3.1.0 https://github.com/eProsima/Fast-DDS.git \
     && chown -R $USERNAME:$USERNAME /home/$USERNAME/ros2_ws/src/fastdds_ws
 
 # Build Fast DDS as user
@@ -123,12 +121,9 @@ RUN cd /home/$USERNAME/ros2_ws/src/fastdds_ws \
     && colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
 USER root
 
-# Clone micro-ROS agent (pinned to stable release 6.0.0)
+# Clone micro-ROS agent (pinned to stable release 6.0.0, shallow clone for speed)
 RUN cd /home/$USERNAME/ros2_ws/src \
-    && git clone https://github.com/micro-ROS/micro-ROS-Agent.git \
-    && cd micro-ROS-Agent \
-    && git checkout 6.0.0 \
-    && cd .. \
+    && git clone --depth 1 --branch 6.0.0 https://github.com/micro-ROS/micro-ROS-Agent.git \
     && chown -R $USERNAME:$USERNAME /home/$USERNAME/ros2_ws/src/micro-ROS-Agent
 
 # Build micro-ROS agent as user (use custom Fast DDS, overlaying ROS 2)
@@ -141,9 +136,9 @@ RUN cd /home/$USERNAME/ros2_ws \
          -DCMAKE_BUILD_TYPE=Release \
          -DCMAKE_PREFIX_PATH="/home/$USERNAME/ros2_ws/src/fastdds_ws/install;/opt/ros/jazzy"
 
-# Clone and build px4_msgs (PX4 message definitions)
+# Clone and build px4_msgs (PX4 message definitions, shallow clone for speed)
 RUN cd /home/$USERNAME/ros2_ws/src \
-    && git clone https://github.com/PX4/px4_msgs.git -b release/1.14 \
+    && git clone --depth 1 -b release/1.14 https://github.com/PX4/px4_msgs.git \
     && chown -R $USERNAME:$USERNAME /home/$USERNAME/ros2_ws/src/px4_msgs
 
 # Build px4_msgs as user
