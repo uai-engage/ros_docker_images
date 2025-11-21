@@ -1,0 +1,111 @@
+# Docker Compose for PX4/ArduPilot Development
+# Complete setup with ground station (desktop + VNC) and companion computer
+# Both containers communicate via ROS 2 DDS on host network
+
+services:
+  # Ground Station - Desktop with Gazebo, RViz2, VNC access
+  ground-station:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        USERNAME: ${USERNAME:-rosuser}
+        USER_UID: ${USER_UID:-1000}
+        USER_GID: ${USER_GID:-1000}
+    image: ros2-gazebo-desktop:jazzy-vnc-px4
+    container_name: ${CONTAINER_NAME_DESKTOP:-ros2_ground_station}
+
+    stdin_open: true
+    tty: true
+
+    environment:
+      - VNC_PASSWORD=${VNC_PASSWORD:-rospassword}
+      - VNC_RESOLUTION=${VNC_RESOLUTION:-1920x1080}
+      - VNC_DEPTH=${VNC_DEPTH:-24}
+      - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}
+      - RMW_IMPLEMENTATION=${RMW_IMPLEMENTATION:-rmw_fastrtps_cpp}
+      - GZ_SIM_RESOURCE_PATH=${GZ_SIM_RESOURCE_PATH:-/home/rosuser/ros2_ws/src/models}
+      - GZ_PARTITION=${GZ_PARTITION:-gazebo}
+      - XDG_RUNTIME_DIR=/tmp/runtime-${USERNAME:-rosuser}
+      # Software rendering for non-GPU servers
+      - LIBGL_ALWAYS_SOFTWARE=1
+      # Fast DDS discovery configuration
+      - FASTRTPS_DEFAULT_PROFILES_FILE=/home/${USERNAME:-rosuser}/.ros/fastdds.xml
+
+    volumes:
+      - ${HOST_WORKSPACE_DESKTOP:-./ros2_ws}:/home/${USERNAME:-rosuser}/ros2_ws:rw
+      - /dev/shm:/dev/shm
+
+    # HOST NETWORK - Required for ROS 2 DDS discovery between containers
+    # VNC: port 5901, noVNC: port 6080
+    network_mode: host
+
+    shm_size: '2gb'
+
+    ipc: host
+
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          memory: 4G
+
+    working_dir: /home/${USERNAME:-rosuser}/ros2_ws
+
+    command: /startup-vnc.sh
+
+  # Companion Computer - Onboard FC communication
+  companion:
+    build:
+      context: .
+      dockerfile: Dockerfile.companion
+      args:
+        USERNAME: ${USERNAME:-rosuser}
+        USER_UID: ${USER_UID:-1000}
+        USER_GID: ${USER_GID:-1000}
+    image: ros2-companion:jazzy-px4
+    container_name: ${CONTAINER_NAME_COMPANION:-ros2_companion}
+
+    stdin_open: true
+    tty: true
+
+    environment:
+      - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}
+      - RMW_IMPLEMENTATION=${RMW_IMPLEMENTATION:-rmw_fastrtps_cpp}
+      # Fast DDS discovery configuration
+      - FASTRTPS_DEFAULT_PROFILES_FILE=/home/${USERNAME:-rosuser}/.ros/fastdds.xml
+      # PX4 micro-ROS settings
+      - XRCE_DDS_PORT=${XRCE_DDS_PORT:-8888}
+      # MAVROS settings
+      - FCU_URL=${FCU_URL:-udp://:14550@}
+
+    volumes:
+      - ${HOST_WORKSPACE_COMPANION:-./companion_ws}:/home/${USERNAME:-rosuser}/ros2_ws:rw
+      - /dev/shm:/dev/shm
+      # Mount serial devices for FC communication
+      - /dev:/dev
+
+    # HOST NETWORK - Required for ROS 2 DDS discovery with ground station
+    network_mode: host
+
+    # Serial port access
+    privileged: true
+
+    shm_size: '512mb'
+
+    ipc: host
+
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
+
+    working_dir: /home/${USERNAME:-rosuser}/ros2_ws
+
+    command: /startup-companion.sh sleep infinity
+
+# Note: Both containers use host network mode to enable automatic ROS 2 DDS discovery
+# They will communicate via topics on the same ROS_DOMAIN_ID

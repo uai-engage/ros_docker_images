@@ -1,0 +1,181 @@
+# ROS 2 Jazzy Companion Computer for PX4/ArduPilot
+# Lightweight image for onboard flight controller communication
+# Forwards messages from FC to ground station via ROS 2 DDS
+
+FROM osrf/ros:jazzy-ros-base-noble
+
+ARG USERNAME=rosuser
+ARG USER_UID=1000
+ARG USER_GID=1000
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install essential packages for companion computer
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # MAVROS2 for ArduPilot communication
+    ros-jazzy-mavros \
+    ros-jazzy-mavros-extras \
+    # Development tools
+    python3-pip \
+    python3-argcomplete \
+    git \
+    wget \
+    curl \
+    vim \
+    nano \
+    htop \
+    net-tools \
+    iputils-ping \
+    # Fast DDS build dependencies
+    libfastcdr-dev \
+    libfastrtps-dev \
+    libasio-dev \
+    libtinyxml2-dev \
+    # Serial communication tools
+    python3-serial \
+    picocom \
+    screen \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create user
+RUN apt-get update \
+    && apt-get install -y sudo \
+    && if getent passwd $USER_UID > /dev/null 2>&1; then \
+         userdel -f $(getent passwd $USER_UID | cut -d: -f1); \
+       fi \
+    && if getent group $USER_GID > /dev/null 2>&1; then \
+         groupmod -n $USERNAME $(getent group $USER_GID | cut -d: -f1); \
+       else \
+         groupadd --gid $USER_GID $USERNAME; \
+       fi \
+    && useradd --no-log-init --uid $USER_UID --gid $USER_GID -m -s /bin/bash $USERNAME \
+    && echo "$USERNAME ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/$USERNAME \
+    && chmod 0440 /etc/sudoers.d/$USERNAME \
+    && rm -rf /var/lib/apt/lists/*
+
+# Add user to dialout group for serial port access
+RUN usermod -aG dialout $USERNAME
+
+# Install MAVROS geographiclib datasets (required for GPS)
+RUN /opt/ros/jazzy/lib/mavros/install_geographiclib_datasets.sh || true
+
+# Set up ROS 2 environment
+RUN echo "source /opt/ros/jazzy/setup.bash" >> /home/$USERNAME/.bashrc \
+    && echo "export ROS_DOMAIN_ID=0" >> /home/$USERNAME/.bashrc \
+    && echo "export RMW_IMPLEMENTATION=rmw_fastrtps_cpp" >> /home/$USERNAME/.bashrc
+
+# Create workspace
+RUN mkdir -p /home/$USERNAME/ros2_ws/src \
+    && chown -R $USERNAME:$USERNAME /home/$USERNAME/ros2_ws
+
+# Build Fast DDS from source (required for micro-ROS agent)
+RUN cd /home/$USERNAME/ros2_ws \
+    && mkdir -p src/fastdds_ws/src \
+    && cd src/fastdds_ws/src \
+    && git clone https://github.com/eProsima/foonathan_memory_vendor.git \
+    && git clone https://github.com/eProsima/Fast-CDR.git \
+    && git clone https://github.com/eProsima/Fast-DDS.git \
+    && chown -R $USERNAME:$USERNAME /home/$USERNAME/ros2_ws/src/fastdds_ws
+
+# Build Fast DDS as user
+USER $USERNAME
+RUN cd /home/$USERNAME/ros2_ws/src/fastdds_ws \
+    && . /opt/ros/jazzy/setup.sh \
+    && colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
+USER root
+
+# Clone micro-ROS agent
+RUN cd /home/$USERNAME/ros2_ws/src \
+    && git clone https://github.com/micro-ROS/micro-ROS-Agent.git \
+    && chown -R $USERNAME:$USERNAME /home/$USERNAME/ros2_ws/src/micro-ROS-Agent
+
+# Build micro-ROS agent as user (use only custom Fast DDS, not ROS Fast DDS)
+USER $USERNAME
+RUN cd /home/$USERNAME/ros2_ws \
+    && . src/fastdds_ws/install/setup.sh \
+    && colcon build --packages-select micro_ros_agent --cmake-args -DCMAKE_BUILD_TYPE=Release -DCMAKE_FIND_PACKAGE_PREFER_CONFIG=ON -DCMAKE_IGNORE_PATH="/opt/ros/jazzy"
+
+# Clone and build px4_msgs (PX4 message definitions)
+RUN cd /home/$USERNAME/ros2_ws/src \
+    && git clone https://github.com/PX4/px4_msgs.git -b release/1.14 \
+    && chown -R $USERNAME:$USERNAME /home/$USERNAME/ros2_ws/src/px4_msgs
+
+# Build px4_msgs as user
+RUN cd /home/$USERNAME/ros2_ws \
+    && . /opt/ros/jazzy/setup.sh \
+    && colcon build --packages-select px4_msgs
+
+# Add workspace sourcing to bashrc
+RUN echo "source /home/$USERNAME/ros2_ws/src/fastdds_ws/install/setup.bash" >> /home/$USERNAME/.bashrc \
+    && echo "source /home/$USERNAME/ros2_ws/install/setup.bash" >> /home/$USERNAME/.bashrc
+USER root
+
+# Create Fast DDS configuration for better network discovery
+RUN mkdir -p /home/$USERNAME/.ros \
+    && echo '<?xml version="1.0" encoding="UTF-8"?>\n\
+<profiles xmlns="http://www.eprosima.com/XMLSchemas/fastRTPS_Profiles">\n\
+  <participant profile_name="participant_profile" is_default_profile="true">\n\
+    <rtps>\n\
+      <builtin>\n\
+        <discovery_config>\n\
+          <discoveryProtocol>SIMPLE</discoveryProtocol>\n\
+          <leaseDuration>\n\
+            <sec>DURATION_INFINITY</sec>\n\
+          </leaseDuration>\n\
+        </discovery_config>\n\
+      </builtin>\n\
+    </rtps>\n\
+  </participant>\n\
+</profiles>' > /home/$USERNAME/.ros/fastdds.xml \
+    && chown -R $USERNAME:$USERNAME /home/$USERNAME/.ros
+
+# Create startup script for companion computer
+RUN echo '#!/bin/bash\n\
+set -e\n\
+\n\
+echo ""\n\
+echo "============================================"\n\
+echo "  ROS 2 Companion Computer Started!"\n\
+echo "============================================"\n\
+echo ""\n\
+echo "Available Services:"\n\
+echo "  - micro-ROS agent (for PX4)"\n\
+echo "  - MAVROS2 (for ArduPilot)"\n\
+echo "  - ROS 2 DDS bridge to ground station"\n\
+echo ""\n\
+echo "ROS 2 Configuration:"\n\
+echo "  - ROS_DOMAIN_ID: ${ROS_DOMAIN_ID:-0}"\n\
+echo "  - RMW: ${RMW_IMPLEMENTATION:-rmw_fastrtps_cpp}"\n\
+echo ""\n\
+echo "Usage Examples:"\n\
+echo "  PX4:        micro-ros-agent udp4 -p 8888"\n\
+echo "  ArduPilot:  ros2 launch mavros apm.launch fcu_url:=udp://:14550@"\n\
+echo ""\n\
+echo "Serial Ports Available:"\n\
+ls -l /dev/tty* 2>/dev/null | grep -E "USB|ACM" || echo "  No serial devices detected"\n\
+echo ""\n\
+echo "============================================"\n\
+echo ""\n\
+\n\
+# Source ROS 2 environment\n\
+source /home/$USERNAME/ros2_ws/src/fastdds_ws/install/setup.bash\n\
+source /home/$USERNAME/ros2_ws/install/setup.bash\n\
+\n\
+# Keep container running\n\
+exec "$@"\n\
+' > /startup-companion.sh \
+    && chmod +x /startup-companion.sh \
+    && chown $USERNAME:$USERNAME /startup-companion.sh
+
+WORKDIR /home/$USERNAME/ros2_ws
+
+USER $USERNAME
+
+ENV USER=$USERNAME
+ENV HOME=/home/$USERNAME
+ENV ROS_DISTRO=jazzy
+ENV SHELL=/bin/bash
+
+# No ports exposed - uses host network for ROS 2 DDS discovery
+
+CMD ["/startup-companion.sh", "sleep", "infinity"]

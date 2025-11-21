@@ -1,0 +1,70 @@
+# Simplified Docker Compose for Development
+# Single container with all features for local PX4/ArduPilot testing
+
+services:
+  ros2-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        USERNAME: ${USERNAME:-rosuser}
+        USER_UID: ${USER_UID:-1000}
+        USER_GID: ${USER_GID:-1000}
+    image: ros2-gazebo-desktop:jazzy-vnc-px4
+    container_name: ${CONTAINER_NAME:-ros2_dev_station}
+
+    stdin_open: true
+    tty: true
+
+    environment:
+      - VNC_PASSWORD=${VNC_PASSWORD:-rospassword}
+      - VNC_RESOLUTION=${VNC_RESOLUTION:-1920x1080}
+      - VNC_DEPTH=${VNC_DEPTH:-24}
+      - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}
+      - RMW_IMPLEMENTATION=${RMW_IMPLEMENTATION:-rmw_fastrtps_cpp}
+      - GZ_SIM_RESOURCE_PATH=${GZ_SIM_RESOURCE_PATH:-/home/rosuser/ros2_ws/src/models}
+      - GZ_PARTITION=${GZ_PARTITION:-gazebo}
+      - XDG_RUNTIME_DIR=/tmp/runtime-${USERNAME:-rosuser}
+      - LIBGL_ALWAYS_SOFTWARE=1
+      - FASTRTPS_DEFAULT_PROFILES_FILE=/home/${USERNAME:-rosuser}/.ros/fastdds.xml
+
+    volumes:
+      - ${HOST_WORKSPACE:-./ros2_ws}:/home/${USERNAME:-rosuser}/ros2_ws:rw
+      - /dev/shm:/dev/shm
+      # Mount serial devices if needed
+      - /dev:/dev
+
+    # HOST NETWORK for ROS 2 DDS and PX4 communication
+    # VNC: port 5901, noVNC: port 6080
+    # micro-ROS: port 8888 (configurable)
+    network_mode: host
+
+    # Serial port access for hardware FC
+    privileged: true
+
+    shm_size: '2gb'
+    ipc: host
+
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          memory: 4G
+
+    working_dir: /home/${USERNAME:-rosuser}/ros2_ws
+
+    command: /startup-vnc.sh
+
+# Usage:
+#   docker compose -f docker-compose-simple.yml build
+#   docker compose -f docker-compose-simple.yml up -d
+#
+# Access VNC: http://localhost:6080/vnc.html
+#
+# Run micro-ROS agent in container:
+#   docker exec -it ros2_dev_station bash
+#   micro-ros-agent udp4 -p 8888
+#
+# Or use MAVROS2 for ArduPilot:
+#   ros2 launch mavros apm.launch fcu_url:=udp://:14550@
