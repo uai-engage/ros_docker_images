@@ -104,12 +104,16 @@ RUN mkdir -p /home/$USERNAME/ros2_ws/src \
     && chown -R $USERNAME:$USERNAME /home/$USERNAME/ros2_ws
 
 # Build Fast DDS from source (required for micro-ROS agent)
+# Pin to commits before Nov 19, 2025 for stability
 RUN cd /home/$USERNAME/ros2_ws \
     && mkdir -p src/fastdds_ws/src \
     && cd src/fastdds_ws/src \
     && git clone https://github.com/eProsima/foonathan_memory_vendor.git \
+    && cd foonathan_memory_vendor && git checkout v1.3.1 && cd .. \
     && git clone https://github.com/eProsima/Fast-CDR.git \
+    && cd Fast-CDR && git checkout v2.2.5 && cd .. \
     && git clone https://github.com/eProsima/Fast-DDS.git \
+    && cd Fast-DDS && git checkout v3.1.0 && cd .. \
     && chown -R $USERNAME:$USERNAME /home/$USERNAME/ros2_ws/src/fastdds_ws
 
 # Build Fast DDS as user
@@ -119,9 +123,12 @@ RUN cd /home/$USERNAME/ros2_ws/src/fastdds_ws \
     && colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
 USER root
 
-# Clone micro-ROS agent
+# Clone micro-ROS agent (pinned to v3.0.1 release for stability)
 RUN cd /home/$USERNAME/ros2_ws/src \
     && git clone https://github.com/micro-ROS/micro-ROS-Agent.git \
+    && cd micro-ROS-Agent \
+    && git checkout 155cfaa \
+    && cd .. \
     && chown -R $USERNAME:$USERNAME /home/$USERNAME/ros2_ws/src/micro-ROS-Agent
 
 # Build micro-ROS agent as user (use custom Fast DDS, overlaying ROS 2)
