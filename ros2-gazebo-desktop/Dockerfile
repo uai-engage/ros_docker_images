@@ -103,17 +103,26 @@ RUN echo "source /opt/ros/jazzy/setup.bash" >> /home/$USERNAME/.bashrc \
 RUN mkdir -p /home/$USERNAME/ros2_ws/src \
     && chown -R $USERNAME:$USERNAME /home/$USERNAME/ros2_ws
 
-# NOTE: Custom Fast DDS and micro-ROS agent build removed from Docker image
-# ROS 2 Jazzy includes Fast DDS (libfastrtps-dev, libfastcdr-dev)
-# micro-ROS agent can be built manually after container is running if needed
-# This keeps the Docker image smaller (~200MB saved) and build faster (~3-4min saved)
-# and avoids Fast DDS target conflicts between system and custom builds
-
-# Clone and build px4_msgs (PX4 message definitions)
+# Clone micro-ROS packages (jazzy branch) and px4_msgs
+# Use jazzy branch to ensure compatibility with ROS 2 Jazzy's Fast DDS 2.x
 USER $USERNAME
 RUN cd /home/$USERNAME/ros2_ws/src \
-    && git clone https://github.com/PX4/px4_msgs.git -b release/1.14 \
-    && cd /home/$USERNAME/ros2_ws \
+    && git clone https://github.com/micro-ROS/micro_ros_msgs.git -b jazzy \
+    && git clone https://github.com/micro-ROS/micro-ROS-Agent.git -b jazzy \
+    && git clone https://github.com/PX4/px4_msgs.git -b release/1.14
+
+# Build micro_ros_msgs first (dependency for micro_ros_agent)
+RUN cd /home/$USERNAME/ros2_ws \
+    && . /opt/ros/jazzy/setup.sh \
+    && colcon build --packages-select micro_ros_msgs --cmake-args -DCMAKE_BUILD_TYPE=Release
+
+# Build micro-ROS agent with ROS 2 Jazzy's system Fast DDS (no custom build needed)
+RUN cd /home/$USERNAME/ros2_ws \
+    && . /opt/ros/jazzy/setup.sh \
+    && colcon build --packages-select micro_ros_agent --cmake-args -DCMAKE_BUILD_TYPE=Release
+
+# Build px4_msgs
+RUN cd /home/$USERNAME/ros2_ws \
     && . /opt/ros/jazzy/setup.sh \
     && colcon build --packages-select px4_msgs
 
