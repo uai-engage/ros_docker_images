@@ -62,9 +62,10 @@ services:
 #
 # Access VNC: http://localhost:6080/vnc.html
 #
-# Run micro-ROS agent in container:
+# NOTE: micro-ROS agent is NOT included in the Docker image to avoid Fast DDS conflicts.
+# If you need micro-ROS agent, build it manually after starting the container:
 #   docker exec -it ros2_dev_station bash
-#   micro-ros-agent udp4 -p 8888
+#   # Then follow manual build instructions in the documentation
 #
-# Or use MAVROS2 for ArduPilot:
+# For ArduPilot, use MAVROS2 (included):
 #   ros2 launch mavros apm.launch fcu_url:=udp://:14550@
