@@ -117,8 +117,10 @@ RUN cd /home/$USERNAME/ros2_ws/src \
     && . /opt/ros/jazzy/setup.sh \
     && colcon build --packages-select px4_msgs
 
-# Add workspace sourcing to bashrc
-RUN echo "source /home/$USERNAME/ros2_ws/install/setup.bash" >> /home/$USERNAME/.bashrc
+# Add workspace sourcing to bashrc (conditional to avoid errors when workspace is mounted)
+RUN echo "if [ -f /home/$USERNAME/ros2_ws/install/setup.bash ]; then" >> /home/$USERNAME/.bashrc \
+    && echo "    source /home/$USERNAME/ros2_ws/install/setup.bash" >> /home/$USERNAME/.bashrc \
+    && echo "fi" >> /home/$USERNAME/.bashrc
 USER root
 
 # Setup VNC directory

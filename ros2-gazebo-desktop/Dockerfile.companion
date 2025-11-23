@@ -68,46 +68,24 @@ RUN echo "source /opt/ros/jazzy/setup.bash" >> /home/$USERNAME/.bashrc \
 RUN mkdir -p /home/$USERNAME/ros2_ws/src \
     && chown -R $USERNAME:$USERNAME /home/$USERNAME/ros2_ws
 
-# Build Fast DDS from source (required for micro-ROS agent)
-RUN cd /home/$USERNAME/ros2_ws \
-    && mkdir -p src/fastdds_ws/src \
-    && cd src/fastdds_ws/src \
-    && git clone https://github.com/eProsima/foonathan_memory_vendor.git \
-    && git clone https://github.com/eProsima/Fast-CDR.git \
-    && git clone https://github.com/eProsima/Fast-DDS.git \
-    && chown -R $USERNAME:$USERNAME /home/$USERNAME/ros2_ws/src/fastdds_ws
-
-# Build Fast DDS as user
-USER $USERNAME
-RUN cd /home/$USERNAME/ros2_ws/src/fastdds_ws \
-    && . /opt/ros/jazzy/setup.sh \
-    && colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
-USER root
-
-# Clone micro-ROS agent
-RUN cd /home/$USERNAME/ros2_ws/src \
-    && git clone https://github.com/micro-ROS/micro-ROS-Agent.git \
-    && chown -R $USERNAME:$USERNAME /home/$USERNAME/ros2_ws/src/micro-ROS-Agent
-
-# Build micro-ROS agent as user (use only custom Fast DDS, not ROS Fast DDS)
-USER $USERNAME
-RUN cd /home/$USERNAME/ros2_ws \
-    && . src/fastdds_ws/install/setup.sh \
-    && colcon build --packages-select micro_ros_agent --cmake-args -DCMAKE_BUILD_TYPE=Release -DCMAKE_FIND_PACKAGE_PREFER_CONFIG=ON
+# NOTE: Custom Fast DDS and micro-ROS agent build removed from Docker image
+# ROS 2 Jazzy includes Fast DDS (libfastrtps-dev, libfastcdr-dev)
+# micro-ROS agent can be built manually after container is running if needed
+# This keeps the Docker image smaller (~200MB saved) and build faster (~3-4min saved)
+# and avoids Fast DDS target conflicts between system and custom builds
 
 # Clone and build px4_msgs (PX4 message definitions)
+USER $USERNAME
 RUN cd /home/$USERNAME/ros2_ws/src \
     && git clone https://github.com/PX4/px4_msgs.git -b release/1.14 \
-    && chown -R $USERNAME:$USERNAME /home/$USERNAME/ros2_ws/src/px4_msgs
-
-# Build px4_msgs as user
-RUN cd /home/$USERNAME/ros2_ws \
+    && cd /home/$USERNAME/ros2_ws \
     && . /opt/ros/jazzy/setup.sh \
     && colcon build --packages-select px4_msgs
 
-# Add workspace sourcing to bashrc
-RUN echo "source /home/$USERNAME/ros2_ws/src/fastdds_ws/install/setup.bash" >> /home/$USERNAME/.bashrc \
-    && echo "source /home/$USERNAME/ros2_ws/install/setup.bash" >> /home/$USERNAME/.bashrc
+# Add workspace sourcing to bashrc (conditional to avoid errors when workspace is mounted)
+RUN echo "if [ -f /home/$USERNAME/ros2_ws/install/setup.bash ]; then" >> /home/$USERNAME/.bashrc \
+    && echo "    source /home/$USERNAME/ros2_ws/install/setup.bash" >> /home/$USERNAME/.bashrc \
+    && echo "fi" >> /home/$USERNAME/.bashrc
 USER root
 
 # Create Fast DDS configuration for better network discovery
