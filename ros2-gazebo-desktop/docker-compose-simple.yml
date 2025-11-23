@@ -1,0 +1,88 @@
+# Simplified Docker Compose for Development
+# Single container with all features for local PX4/ArduPilot testing
+
+services:
+  ros2-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        USERNAME: ${USERNAME:-rosuser}
+        USER_UID: ${USER_UID:-1000}
+        USER_GID: ${USER_GID:-1000}
+    image: ros2-gazebo-desktop:jazzy-vnc-px4
+    container_name: ${CONTAINER_NAME:-ros2_dev_station}
+
+    stdin_open: true
+    tty: true
+
+    environment:
+      - VNC_PASSWORD=${VNC_PASSWORD:-rospassword}
+      - VNC_RESOLUTION=${VNC_RESOLUTION:-1920x1080}
+      - VNC_DEPTH=${VNC_DEPTH:-24}
+      - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}
+      - RMW_IMPLEMENTATION=${RMW_IMPLEMENTATION:-rmw_fastrtps_cpp}
+      - GZ_SIM_RESOURCE_PATH=${GZ_SIM_RESOURCE_PATH:-/home/rosuser/ros2_ws/src/models}
+      - GZ_PARTITION=${GZ_PARTITION:-gazebo}
+      - XDG_RUNTIME_DIR=/tmp/runtime-${USERNAME:-rosuser}
+      - LIBGL_ALWAYS_SOFTWARE=1
+      - FASTRTPS_DEFAULT_PROFILES_FILE=/home/${USERNAME:-rosuser}/.ros/fastdds.xml
+
+    volumes:
+      # Built-in workspace (DO NOT MOUNT - contains micro-ROS agent, px4_msgs)
+      # ~/ros2_ws inside container has pre-built packages
+
+      # Development workspace (MOUNT YOUR CUSTOM PACKAGES HERE)
+      # This overlays on top of built-in workspace using ROS 2 overlay feature
+      # Your packages will have access to micro-ROS agent, MAVROS2, px4_msgs
+      - ${DEV_WORKSPACE:-./dev_ws}:/home/${USERNAME:-rosuser}/dev_ws:rw
+
+      - /dev/shm:/dev/shm
+      # Mount serial devices if needed
+      - /dev:/dev
+
+    # HOST NETWORK for ROS 2 DDS and PX4 communication
+    # VNC: port 5901, noVNC: port 6080
+    # micro-ROS: port 8888 (configurable)
+    network_mode: host
+
+    # Serial port access for hardware FC
+    privileged: true
+
+    shm_size: '2gb'
+    ipc: host
+
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          memory: 4G
+
+    working_dir: /home/${USERNAME:-rosuser}/ros2_ws
+
+    command: /startup-vnc.sh
+
+# Usage:
+#   docker compose -f docker-compose-simple.yml build
+#   docker compose -f docker-compose-simple.yml up -d
+#
+# Access VNC: http://localhost:6080/vnc.html
+#
+# Run micro-ROS agent (for PX4):
+#   docker exec -it ros2_dev_station bash
+#   micro-ros-agent udp4 -p 8888
+#
+# Or use MAVROS2 (for ArduPilot/PX4):
+#   docker exec -it ros2_dev_station bash
+#   ros2 launch mavros apm.launch fcu_url:=udp://:14550@
+#
+# Development Workspace (for your custom packages):
+#   1. Create dev_ws on host: mkdir -p dev_ws/src
+#   2. Create your package: cd dev_ws/src && ros2 pkg create my_package
+#   3. Inside container:
+#      cd ~/dev_ws
+#      source ~/ros2_ws/install/setup.bash  # Source built-in packages first
+#      colcon build
+#      source install/setup.bash            # Source your packages
+#   4. Now you have access to both micro-ROS agent AND your custom packages!

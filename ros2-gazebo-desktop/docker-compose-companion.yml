@@ -1,0 +1,85 @@
+# Docker Compose for Companion Computer Only
+# Lightweight setup for onboard flight controller communication
+# Deploy this on Raspberry Pi, Jetson, or other onboard computer
+
+services:
+  companion:
+    build:
+      context: .
+      dockerfile: Dockerfile.companion
+      args:
+        USERNAME: ${USERNAME:-rosuser}
+        USER_UID: ${USER_UID:-1000}
+        USER_GID: ${USER_GID:-1000}
+    image: ros2-companion:jazzy-px4
+    container_name: ${CONTAINER_NAME:-ros2_companion}
+
+    stdin_open: true
+    tty: true
+
+    environment:
+      - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}
+      - RMW_IMPLEMENTATION=${RMW_IMPLEMENTATION:-rmw_fastrtps_cpp}
+      # Fast DDS discovery configuration
+      - FASTRTPS_DEFAULT_PROFILES_FILE=/home/${USERNAME:-rosuser}/.ros/fastdds.xml
+      # PX4 micro-ROS settings
+      - XRCE_DDS_PORT=${XRCE_DDS_PORT:-8888}
+      # MAVROS settings
+      - FCU_URL=${FCU_URL:-udp://:14550@}
+
+    volumes:
+      - ${HOST_WORKSPACE:-./companion_ws}:/home/${USERNAME:-rosuser}/ros2_ws:rw
+      - /dev/shm:/dev/shm
+      # Mount serial devices for FC communication
+      - /dev:/dev
+
+    # HOST NETWORK - Required for ROS 2 DDS discovery with ground station
+    # Companion will broadcast ROS 2 topics on this network
+    # Ground station on another machine will auto-discover topics
+    network_mode: host
+
+    # Serial port access for flight controller
+    privileged: true
+
+    shm_size: '512mb'
+
+    ipc: host
+
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
+
+    working_dir: /home/${USERNAME:-rosuser}/ros2_ws
+
+    command: /startup-companion.sh sleep infinity
+
+    restart: unless-stopped
+
+# Usage:
+#   1. Deploy to onboard computer (Raspberry Pi, Jetson, etc.)
+#   2. Build: docker compose -f docker-compose-companion.yml build
+#   3. Start: docker compose -f docker-compose-companion.yml up -d
+#
+# Connect Flight Controller:
+#   - PX4: docker exec -it ros2_companion bash
+#          micro-ros-agent udp4 -p 8888
+#          (or serial: micro-ros-agent serial --dev /dev/ttyUSB0 -b 921600)
+#
+#   - ArduPilot: docker exec -it ros2_companion bash
+#                ros2 launch mavros apm.launch fcu_url:=udp://:14550@
+#                (or serial: fcu_url:=/dev/ttyUSB0:921600)
+#
+# ROS 2 Communication:
+#   - Set same ROS_DOMAIN_ID on ground station
+#   - Topics automatically discovered via host network
+#   - Ground station will see all /fmu/* or /mavros/* topics
+
+# Environment Variables:
+#   Copy .env.companion to .env and customize:
+#   - ROS_DOMAIN_ID: Must match ground station
+#   - XRCE_DDS_PORT: PX4 micro-ROS port (default 8888)
+#   - FCU_URL: ArduPilot connection string
+#   - HOST_WORKSPACE: Local directory for custom packages
