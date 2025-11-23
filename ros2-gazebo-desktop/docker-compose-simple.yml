@@ -29,9 +29,14 @@ services:
       - FASTRTPS_DEFAULT_PROFILES_FILE=/home/${USERNAME:-rosuser}/.ros/fastdds.xml
 
     volumes:
-      # Workspace mount: Comment out to use built-in workspace with micro-ROS agent
-      # Uncomment to develop custom packages (will need to rebuild micro-ROS agent)
-      # - ${HOST_WORKSPACE:-./ros2_ws}:/home/${USERNAME:-rosuser}/ros2_ws:rw
+      # Built-in workspace (DO NOT MOUNT - contains micro-ROS agent, px4_msgs)
+      # ~/ros2_ws inside container has pre-built packages
+
+      # Development workspace (MOUNT YOUR CUSTOM PACKAGES HERE)
+      # This overlays on top of built-in workspace using ROS 2 overlay feature
+      # Your packages will have access to micro-ROS agent, MAVROS2, px4_msgs
+      - ${DEV_WORKSPACE:-./dev_ws}:/home/${USERNAME:-rosuser}/dev_ws:rw
+
       - /dev/shm:/dev/shm
       # Mount serial devices if needed
       - /dev:/dev
@@ -71,3 +76,13 @@ services:
 # Or use MAVROS2 (for ArduPilot/PX4):
 #   docker exec -it ros2_dev_station bash
 #   ros2 launch mavros apm.launch fcu_url:=udp://:14550@
+#
+# Development Workspace (for your custom packages):
+#   1. Create dev_ws on host: mkdir -p dev_ws/src
+#   2. Create your package: cd dev_ws/src && ros2 pkg create my_package
+#   3. Inside container:
+#      cd ~/dev_ws
+#      source ~/ros2_ws/install/setup.bash  # Source built-in packages first
+#      colcon build
+#      source install/setup.bash            # Source your packages
+#   4. Now you have access to both micro-ROS agent AND your custom packages!
