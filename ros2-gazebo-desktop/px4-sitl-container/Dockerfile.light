@@ -60,6 +60,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Minimal graphics libs (for PX4 build, not for rendering)
     libgl1-mesa-dev \
     libglu1-mesa-dev \
+    # OpenCV (required for PX4 optical flow plugin in v1.16.0+)
+    libopencv-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Gazebo Transport ONLY (for communication, not full Gazebo)

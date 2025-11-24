@@ -62,6 +62,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1-mesa-glx \
     libegl1-mesa \
     libgles2-mesa \
+    # OpenCV (required for PX4 optical flow plugin in v1.16.0+)
+    libopencv-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Gazebo Harmonic
