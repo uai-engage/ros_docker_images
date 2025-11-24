@@ -58,7 +58,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     socat \
     # ZeroMQ C++ bindings (required for PX4 v1.16.0+)
     libzmq3-dev \
-    libcppzmq-dev \
+    cppzmq-dev \
     # GStreamer (for video streaming plugins)
     libgstreamer1.0-dev \
     libgstreamer-plugins-base1.0-dev \
