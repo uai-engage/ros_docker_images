@@ -42,7 +42,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-jinja2 \
     python3-yaml \
     python3-jsonschema \
-    python3-pyulog \
     # PX4 build dependencies
     astyle \
     exiftool \
@@ -92,7 +91,8 @@ RUN pip3 install --break-system-packages --no-cache-dir \
     future \
     cerberus \
     pymavlink \
-    MAVProxy
+    MAVProxy \
+    pyulog
 
 # Switch to user
 USER $USERNAME
