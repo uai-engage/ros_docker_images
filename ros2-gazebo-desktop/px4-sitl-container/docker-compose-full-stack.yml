@@ -1,0 +1,144 @@
+# Combined Docker Compose - PX4 SITL + ROS2 Desktop
+# ==================================================
+# This file runs both containers together for a complete simulation environment
+#
+# Usage:
+#   docker compose -f docker-compose-full-stack.yml build
+#   docker compose -f docker-compose-full-stack.yml up -d
+#
+# Or start individually:
+#   docker compose -f docker-compose-full-stack.yml up -d px4-sitl
+#   docker compose -f docker-compose-full-stack.yml up -d ros2-desktop
+
+services:
+  # ==========================================
+  # PX4 SITL Container
+  # ==========================================
+  px4-sitl:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        USERNAME: ${USERNAME:-px4user}
+        USER_UID: ${USER_UID:-1000}
+        USER_GID: ${USER_GID:-1000}
+        PX4_VERSION: ${PX4_VERSION:-v1.16.0}
+    image: px4-sitl:${PX4_VERSION:-v1.16.0}-gz-harmonic
+    container_name: ${PX4_CONTAINER_NAME:-px4_sitl}
+
+    stdin_open: true
+    tty: true
+
+    environment:
+      - PX4_GZ_MODEL=${PX4_GZ_MODEL:-x500}
+      - PX4_GZ_WORLD=${PX4_GZ_WORLD:-default}
+      - PX4_SYS_AUTOSTART=${PX4_SYS_AUTOSTART:-4001}
+      - PX4_SIM_INSTANCE=${PX4_SIM_INSTANCE:-0}
+      - PX4_SIM_HOST_ADDR=${PX4_SIM_HOST_ADDR:-0.0.0.0}
+      - HEADLESS=${HEADLESS:-1}
+      - GZ_SIM_RESOURCE_PATH=/home/${USERNAME:-px4user}/PX4-Autopilot/Tools/simulation/gz/models:/home/${USERNAME:-px4user}/PX4-Autopilot/Tools/simulation/gz/worlds
+      - UXRCE_DDS_AG_IP=${UXRCE_DDS_AG_IP:-127.0.0.1}
+      - UXRCE_DDS_PRT=${UXRCE_DDS_PRT:-8888}
+
+    volumes:
+      - ${PX4_SOURCE_PATH:-./PX4-Autopilot}:/home/${USERNAME:-px4user}/PX4-Autopilot:rw
+      - /dev/shm:/dev/shm
+
+    network_mode: host
+    shm_size: '2gb'
+    ipc: host
+
+    deploy:
+      resources:
+        limits:
+          memory: ${PX4_MEMORY_LIMIT:-8G}
+        reservations:
+          memory: ${PX4_MEMORY_RESERVATION:-4G}
+
+    working_dir: /home/${USERNAME:-px4user}/PX4-Autopilot
+    command: /home/${USERNAME:-px4user}/scripts/start-px4-sitl.sh
+
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "px4"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ==========================================
+  # ROS2 Gazebo Desktop Container
+  # ==========================================
+  ros2-desktop:
+    build:
+      context: ${ROS2_CONTEXT_PATH:-../ros2-gazebo-desktop}
+      dockerfile: Dockerfile
+      args:
+        USERNAME: ${ROS2_USERNAME:-rosuser}
+        USER_UID: ${USER_UID:-1000}
+        USER_GID: ${USER_GID:-1000}
+    image: ros2-gazebo-desktop:jazzy-vnc-px4
+    container_name: ${ROS2_CONTAINER_NAME:-ros2_gazebo_vnc}
+
+    stdin_open: true
+    tty: true
+
+    environment:
+      - VNC_PASSWORD=${VNC_PASSWORD:-rospassword}
+      - VNC_RESOLUTION=${VNC_RESOLUTION:-1920x1080}
+      - VNC_DEPTH=${VNC_DEPTH:-24}
+      - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}
+      - RMW_IMPLEMENTATION=${RMW_IMPLEMENTATION:-rmw_fastrtps_cpp}
+      - GZ_SIM_RESOURCE_PATH=/home/${ROS2_USERNAME:-rosuser}/ros2_ws/src/models
+      - GZ_PARTITION=gazebo
+      - XDG_RUNTIME_DIR=/tmp/runtime-${ROS2_USERNAME:-rosuser}
+      - LIBGL_ALWAYS_SOFTWARE=1
+      - FASTRTPS_DEFAULT_PROFILES_FILE=/home/${ROS2_USERNAME:-rosuser}/.ros/fastdds.xml
+
+    volumes:
+      # Development workspace for custom packages
+      - ${DEV_WORKSPACE:-./dev_ws}:/home/${ROS2_USERNAME:-rosuser}/dev_ws:rw
+      - /dev/shm:/dev/shm
+      - /dev:/dev
+
+    network_mode: host
+    privileged: true
+    shm_size: '2gb'
+    ipc: host
+
+    deploy:
+      resources:
+        limits:
+          memory: ${ROS2_MEMORY_LIMIT:-8G}
+        reservations:
+          memory: ${ROS2_MEMORY_RESERVATION:-4G}
+
+    working_dir: /home/${ROS2_USERNAME:-rosuser}/ros2_ws
+    command: /startup-vnc.sh
+
+    depends_on:
+      px4-sitl:
+        condition: service_healthy
+
+# ==================================================
+# Usage Notes:
+# ==================================================
+#
+# 1. Start everything:
+#    docker compose -f docker-compose-full-stack.yml up -d
+#
+# 2. Access ROS 2 Desktop:
+#    - Web: http://<server-ip>:6080/vnc.html
+#    - VNC: <server-ip>:5901
+#
+# 3. Start micro-ROS agent (in ROS 2 container):
+#    docker exec -it ros2_gazebo_vnc bash
+#    ros2 run micro_ros_agent micro_ros_agent udp4 -p 8888
+#
+# 4. Connect QGroundControl:
+#    - Auto-discovers on UDP 14550
+#
+# 5. Check PX4 status:
+#    docker compose -f docker-compose-full-stack.yml logs px4-sitl
+#
+# 6. Stop everything:
+#    docker compose -f docker-compose-full-stack.yml down

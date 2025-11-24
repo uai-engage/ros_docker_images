@@ -1,0 +1,23 @@
+# Environment file (contains passwords/settings)
+.env
+
+# PX4 Source (cloned separately)
+PX4-Autopilot/
+
+# Build artifacts
+*.log
+*.tmp
+
+# Docker
+.docker/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

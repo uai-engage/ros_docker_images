@@ -1,0 +1,120 @@
+# PX4 SITL Docker Compose
+# Run PX4 SITL with Gazebo Harmonic in a container
+# Communicates with ROS 2 container via host network
+
+services:
+  px4-sitl:
+    build:
+      context: .
+      # Use Dockerfile.light (no Gazebo) - connects to Gazebo in ROS2 container
+      # Use Dockerfile (full Gazebo) if you want embedded headless Gazebo
+      dockerfile: ${DOCKERFILE:-Dockerfile.light}
+      args:
+        USERNAME: ${USERNAME:-px4user}
+        USER_UID: ${USER_UID:-1000}
+        USER_GID: ${USER_GID:-1000}
+        PX4_VERSION: ${PX4_VERSION:-v1.16.0}
+    image: px4-sitl:${PX4_VERSION:-v1.16.0}-gz-harmonic
+    container_name: ${CONTAINER_NAME:-px4_sitl}
+
+    stdin_open: true
+    tty: true
+
+    environment:
+      # PX4 SITL Configuration
+      - PX4_GZ_MODEL=${PX4_GZ_MODEL:-x500}
+      - PX4_GZ_WORLD=${PX4_GZ_WORLD:-default}
+      - PX4_SYS_AUTOSTART=${PX4_SYS_AUTOSTART:-4001}
+      - PX4_SIM_INSTANCE=${PX4_SIM_INSTANCE:-0}
+      - PX4_SIM_HOST_ADDR=${PX4_SIM_HOST_ADDR:-0.0.0.0}
+      
+      # Gazebo Mode
+      # EXTERNAL_GAZEBO=1 : Connect to Gazebo in ROS2 container (recommended)
+      # EXTERNAL_GAZEBO=0 : Run Gazebo inside this container (headless)
+      - EXTERNAL_GAZEBO=${EXTERNAL_GAZEBO:-1}
+      - HEADLESS=${HEADLESS:-1}
+      - WAIT_FOR_GAZEBO=${WAIT_FOR_GAZEBO:-0}
+      
+      # Gazebo Transport (for external Gazebo connection)
+      - GZ_PARTITION=${GZ_PARTITION:-gazebo}
+      - GZ_IP=${GZ_IP:-127.0.0.1}
+      - GZ_SIM_RESOURCE_PATH=/home/${USERNAME:-px4user}/PX4-Autopilot/Tools/simulation/gz/models:/home/${USERNAME:-px4user}/PX4-Autopilot/Tools/simulation/gz/worlds
+      
+      # uXRCE-DDS settings (for ROS 2 communication)
+      - UXRCE_DDS_AG_IP=${UXRCE_DDS_AG_IP:-127.0.0.1}
+      - UXRCE_DDS_PRT=${UXRCE_DDS_PRT:-8888}
+
+    volumes:
+      # Option 1: Mount your local PX4-Autopilot source (recommended for development)
+      # Uncomment this and comment out Option 2 if you have local source
+      - ${PX4_SOURCE_PATH:-./PX4-Autopilot}:/home/${USERNAME:-px4user}/PX4-Autopilot:rw
+      
+      # Shared memory for Gazebo
+      - /dev/shm:/dev/shm
+
+    # HOST NETWORK - Required for:
+    # - MAVLink broadcast to QGC on Windows
+    # - uXRCE-DDS communication with ROS 2 container
+    # - Gazebo transport (if needed)
+    network_mode: host
+
+    # Shared memory size for Gazebo
+    shm_size: '2gb'
+    ipc: host
+
+    deploy:
+      resources:
+        limits:
+          memory: ${MEMORY_LIMIT:-8G}
+        reservations:
+          memory: ${MEMORY_RESERVATION:-4G}
+
+    working_dir: /home/${USERNAME:-px4user}/PX4-Autopilot
+
+    command: /home/${USERNAME:-px4user}/scripts/start-px4-sitl.sh
+
+    # Health check - verify PX4 is running
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "px4"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+# Usage:
+# ======
+#
+# 1. Clone PX4-Autopilot to this directory (or set PX4_SOURCE_PATH):
+#    git clone --recursive https://github.com/PX4/PX4-Autopilot.git -b v1.16.0
+#
+# 2. Build the container:
+#    docker compose build
+#
+# 3. Start PX4 SITL:
+#    docker compose up -d
+#
+# 4. View logs:
+#    docker compose logs -f
+#
+# 5. Connect from ROS 2 container:
+#    # In ros2-gazebo-desktop container:
+#    ros2 run micro_ros_agent micro_ros_agent udp4 -p 8888
+#
+# 6. Connect QGroundControl (Windows):
+#    - Open QGC
+#    - Should auto-discover on UDP 14550
+#    - Or manually add: UDP, port 14550, host IP
+#
+# Vehicle Models (PX4_GZ_MODEL):
+# ==============================
+# - x500        : Quadcopter (default)
+# - x500_depth  : Quadcopter with depth camera
+# - rc_cessna   : Fixed-wing RC plane
+# - standard_vtol: Standard VTOL
+#
+# Airframes (PX4_SYS_AUTOSTART):
+# ==============================
+# - 4001 : x500 Quadcopter
+# - 4011 : DJI F450
+# - 2106 : Cessna (plane)
+# - 13000: Standard VTOL
