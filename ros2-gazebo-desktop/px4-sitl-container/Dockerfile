@@ -56,6 +56,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     iproute2 \
     netcat-openbsd \
     socat \
+    # ZeroMQ C++ bindings (required for PX4 v1.16.0+)
+    libzmq3-dev \
+    libcppzmq-dev \
+    # GStreamer (for video streaming plugins)
+    libgstreamer1.0-dev \
+    libgstreamer-plugins-base1.0-dev \
+    gstreamer1.0-plugins-base \
+    gstreamer1.0-plugins-good \
     # For headless Gazebo
     xvfb \
     libgl1-mesa-dri \
