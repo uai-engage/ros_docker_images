@@ -102,7 +102,8 @@ RUN pip3 install --break-system-packages --no-cache-dir \
     cerberus \
     pymavlink \
     MAVProxy \
-    pyulog
+    pyulog \
+    pyros-genmsg
 
 # Switch to user
 USER $USERNAME
