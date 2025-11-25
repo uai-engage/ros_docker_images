@@ -28,6 +28,17 @@ if [ -f "/.dockerenv" ] && [ -d "/home/px4user/PX4-Autopilot/src" ]; then
     fi
 fi
 
+# Create extras.txt BEFORE starting PX4 (must exist before px4 binary reads config)
+# This adds TCP MAVLink for remote QGroundControl
+mkdir -p ${PX4_HOME}/build/px4_sitl_default/etc
+cat > ${PX4_HOME}/build/px4_sitl_default/etc/extras.txt << 'EOF'
+# Additional MAVLink TCP connection for remote QGroundControl
+# -x: external mode, -o: port, -t: bind address (0.0.0.0 = all interfaces), -m: mode, -r: rate
+mavlink start -x -o 5760 -t 0.0.0.0 -m onboard -r 4000000
+EOF
+
+echo "Created extras.txt for TCP MAVLink on port 5760"
+
 # Configure MAVLink broadcast
 export PX4_SIM_HOST_ADDR=${PX4_SIM_HOST_ADDR:-0.0.0.0}
 
@@ -45,9 +56,20 @@ if [ "${EXTERNAL_GAZEBO:-0}" = "1" ]; then
     echo "Connecting to Gazebo in ROS2 container..."
     echo "  GZ_PARTITION: ${GZ_PARTITION}"
     echo "  GZ_IP:        ${GZ_IP}"
+    echo "  GZ_RELAY:     ${GZ_RELAY:-not set}"
     echo ""
-    echo "Make sure Gazebo is running in your ROS2 container:"
-    echo "  gz sim -r default.sdf"
+    echo "Verifying Gazebo connection..."
+    if gz topic -l 2>/dev/null | grep -q "/clock"; then
+        echo "  ✓ Gazebo is running and accessible"
+        TOPIC_COUNT=$(gz topic -l 2>/dev/null | wc -l)
+        echo "  ✓ Found $TOPIC_COUNT Gazebo topics"
+    else
+        echo "  ❌ Cannot reach Gazebo!"
+        echo ""
+        echo "Make sure Gazebo is running in your ROS2 container:"
+        echo "  gz sim -r default.sdf"
+        echo ""
+    fi
     echo ""
     
     # Wait for Gazebo if requested
@@ -58,6 +80,28 @@ if [ "${EXTERNAL_GAZEBO:-0}" = "1" ]; then
             sleep 2
         done
         echo "Gazebo detected!"
+    fi
+
+    # Always wait for vehicle model to be spawned (prevents sensor bridge issues)
+    echo "Checking if vehicle will be spawned by Gazebo..."
+    MAX_WAIT=30
+    WAITED=0
+    while [ $WAITED -lt $MAX_WAIT ]; do
+        if gz topic -l 2>/dev/null | grep -q "/world/.*/model/${PX4_GZ_MODEL:-x500}"; then
+            echo "✓ Vehicle model topics detected in Gazebo"
+            sleep 2  # Extra delay for sensor initialization
+            break
+        fi
+        if [ $WAITED -eq 0 ]; then
+            echo "Waiting for vehicle ${PX4_GZ_MODEL:-x500} to spawn in Gazebo..."
+        fi
+        sleep 1
+        WAITED=$((WAITED + 1))
+    done
+
+    if [ $WAITED -ge $MAX_WAIT ]; then
+        echo "⚠️  Warning: Vehicle not detected in Gazebo after ${MAX_WAIT}s"
+        echo "   PX4 will start anyway and spawn the vehicle"
     fi
 else
     echo ""
@@ -90,15 +134,6 @@ echo "  Command: ros2 run micro_ros_agent micro_ros_agent udp4 -p 8888"
 echo ""
 echo "============================================"
 echo ""
-
-# Create PX4 extras file to add TCP MAVLink
-# TCP listener must bind to 0.0.0.0 to accept connections from remote machines
-mkdir -p ${PX4_HOME}/build/px4_sitl_default/etc
-cat > ${PX4_HOME}/build/px4_sitl_default/etc/extras.txt << 'EOF'
-# Additional MAVLink TCP connection for remote QGroundControl
-# -x: external mode, -o: port, -t: bind address (0.0.0.0 = all interfaces), -m: mode, -r: rate
-mavlink start -x -o 5760 -t 0.0.0.0 -m onboard -r 4000000
-EOF
 
 # Run PX4 SITL
 if [ "${EXTERNAL_GAZEBO:-0}" = "1" ]; then
