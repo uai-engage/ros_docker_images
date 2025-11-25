@@ -22,7 +22,8 @@ services:
       - VNC_DEPTH=${VNC_DEPTH:-24}
       - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}
       - RMW_IMPLEMENTATION=${RMW_IMPLEMENTATION:-rmw_fastrtps_cpp}
-      - GZ_SIM_RESOURCE_PATH=${GZ_SIM_RESOURCE_PATH:-/home/rosuser/ros2_ws/src/models}
+      # PX4 Gazebo models/worlds path (mounted from px4-sitl-container)
+      - GZ_SIM_RESOURCE_PATH=/home/rosuser/px4_gazebo/models:/home/rosuser/px4_gazebo/worlds
       - GZ_PARTITION=${GZ_PARTITION:-gazebo}
       - XDG_RUNTIME_DIR=/tmp/runtime-${USERNAME:-rosuser}
       - LIBGL_ALWAYS_SOFTWARE=1
@@ -36,6 +37,10 @@ services:
       # This overlays on top of built-in workspace using ROS 2 overlay feature
       # Your packages will have access to micro-ROS agent, MAVROS2, px4_msgs
       - ${DEV_WORKSPACE:-./dev_ws}:/home/${USERNAME:-rosuser}/dev_ws:rw
+
+      # PX4 Gazebo models and worlds (shared with PX4 SITL container)
+      # This allows Gazebo to load PX4 vehicle models (x500, rc_cessna, etc.)
+      - ${PX4_GAZEBO_PATH:-./px4-sitl-container/PX4-Autopilot/Tools/simulation/gz}:/home/${USERNAME:-rosuser}/px4_gazebo:ro
 
       - /dev/shm:/dev/shm
       # Mount serial devices if needed
@@ -68,6 +73,22 @@ services:
 #   docker compose -f docker-compose-simple.yml up -d
 #
 # Access VNC: http://localhost:6080/vnc.html
+#
+# ==============================================
+# Running Gazebo with PX4 Models:
+# ==============================================
+#   1. Connect to ROS 2 container:
+#      docker exec -it ros2_dev_station bash
+#
+#   2. Launch Gazebo with PX4 world:
+#      gz sim -v4 -r ~/px4_gazebo/worlds/default.sdf
+#
+#      Available worlds:
+#      - default.sdf (empty world)
+#      - baylands.sdf (outdoor terrain)
+#      - windy.sdf (with wind simulation)
+#
+#   3. The PX4 SITL will automatically spawn the vehicle when it connects
 #
 # Run micro-ROS agent (for PX4):
 #   docker exec -it ros2_dev_station bash
