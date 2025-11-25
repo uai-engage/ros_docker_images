@@ -92,10 +92,12 @@ echo "============================================"
 echo ""
 
 # Create PX4 extras file to add TCP MAVLink
+# TCP listener must bind to 0.0.0.0 to accept connections from remote machines
 mkdir -p ${PX4_HOME}/build/px4_sitl_default/etc
 cat > ${PX4_HOME}/build/px4_sitl_default/etc/extras.txt << 'EOF'
 # Additional MAVLink TCP connection for remote QGroundControl
-mavlink start -x -o 5760 -r 4000000
+# -x: external mode, -o: port, -t: bind address (0.0.0.0 = all interfaces), -m: mode, -r: rate
+mavlink start -x -o 5760 -t 0.0.0.0 -m onboard -r 4000000
 EOF
 
 # Run PX4 SITL
