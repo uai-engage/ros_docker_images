@@ -25,6 +25,10 @@ echo "3. Checking Gazebo-PX4 bridge topics..."
 docker exec px4_sitl bash -c "gz topic -l 2>/dev/null | grep -E '(imu|clock|mag|baro)' | head -20 || echo '❌ No sensor topics found'"
 echo ""
 
+echo "3b. Checking PX4 bridge module status..."
+docker logs px4_sitl 2>&1 | grep -i "gz_bridge" | tail -10 || echo "No bridge logs found"
+echo ""
+
 echo "4. Checking PX4 MAVLink instances..."
 docker exec px4_sitl bash -c "pgrep -fa 'px4' | grep -v grep"
 echo ""
@@ -52,6 +56,18 @@ echo "8. Checking for TCP MAVLink specifically..."
 docker logs px4_sitl 2>&1 | grep -i "tcp.*5760" || echo "❌ No TCP MAVLink on port 5760 found in logs"
 echo ""
 
+echo "9. Checking sensor data flow..."
+docker logs px4_sitl 2>&1 | grep -E "(accel|gyro|mag|baro)" | grep -v "missing" | tail -5 || echo "❌ No sensor data detected"
+echo ""
+
+echo "10. Checking rcS modification..."
+docker exec px4_sitl bash -c "grep -A 2 'TCP MAVLink 5760' /home/px4user/PX4-Autopilot/build/px4_sitl_default/etc/init.d/rcS 2>/dev/null || echo '❌ rcS not modified'"
+echo ""
+
 echo "=========================================="
 echo "Diagnostic complete"
+echo ""
+echo "Summary:"
+echo "--------"
+docker logs px4_sitl 2>&1 | tail -5 | head -3
 echo "=========================================="

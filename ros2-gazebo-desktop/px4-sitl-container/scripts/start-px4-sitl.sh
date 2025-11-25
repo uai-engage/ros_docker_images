@@ -28,19 +28,21 @@ if [ -f "/.dockerenv" ] && [ -d "/home/px4user/PX4-Autopilot/src" ]; then
     fi
 fi
 
-# Create custom rc.autostart.post for TCP MAVLink
-# This file is sourced by PX4 after autostart completes
-mkdir -p ${PX4_HOME}/build/px4_sitl_default/etc/init.d-posix
-cat > ${PX4_HOME}/build/px4_sitl_default/etc/init.d-posix/rc.autostart.post << 'EOF'
-#!/bin/sh
-# Custom post-autostart commands
-# Start TCP MAVLink for remote QGroundControl
-echo "Starting TCP MAVLink on port 5760..."
-mavlink start -x -o 5760 -t 0.0.0.0 -m onboard -r 4000000
-EOF
-
-chmod +x ${PX4_HOME}/build/px4_sitl_default/etc/init.d-posix/rc.autostart.post
-echo "Created rc.autostart.post for TCP MAVLink on port 5760"
+# Modify PX4's rcS to add TCP MAVLink at the end
+# This ensures it runs after all other initialization
+if [ -f "${PX4_HOME}/build/px4_sitl_default/etc/init.d/rcS" ]; then
+    # Check if we haven't already modified it
+    if ! grep -q "TCP MAVLink 5760" "${PX4_HOME}/build/px4_sitl_default/etc/init.d/rcS"; then
+        echo "" >> "${PX4_HOME}/build/px4_sitl_default/etc/init.d/rcS"
+        echo "# TCP MAVLink 5760 for remote QGroundControl (added by start-px4-sitl.sh)" >> "${PX4_HOME}/build/px4_sitl_default/etc/init.d/rcS"
+        echo "mavlink start -x -o 5760 -t 0.0.0.0 -m onboard -r 4000000" >> "${PX4_HOME}/build/px4_sitl_default/etc/init.d/rcS"
+        echo "Modified rcS to add TCP MAVLink on port 5760"
+    else
+        echo "rcS already contains TCP MAVLink configuration"
+    fi
+else
+    echo "Warning: rcS not found, will be created on first PX4 build"
+fi
 
 # Configure MAVLink broadcast
 export PX4_SIM_HOST_ADDR=${PX4_SIM_HOST_ADDR:-0.0.0.0}
