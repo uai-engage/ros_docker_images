@@ -13,6 +13,10 @@ services:
     image: ros2-gazebo-desktop:jazzy-vnc-px4
     container_name: ${CONTAINER_NAME:-ros2_dev_station}
 
+    # Load environment variables from .env or .env.vnc
+    env_file:
+      - .env
+
     stdin_open: true
     tty: true
 
@@ -28,8 +32,13 @@ services:
       - XDG_RUNTIME_DIR=/tmp/runtime-${USERNAME:-rosuser}
       # Gazebo rendering: ogre works better with software rendering than ogre2
       - GZ_SIM_RENDER_ENGINE_NAME=ogre
-      # Software rendering (can be disabled if hardware acceleration available)
-      - LIBGL_ALWAYS_SOFTWARE=${LIBGL_ALWAYS_SOFTWARE:-1}
+      # EGL Software Rendering (for VNC without GPU)
+      # Option 1: Use software rendering (swrast)
+      - LIBGL_ALWAYS_SOFTWARE=${LIBGL_ALWAYS_SOFTWARE:-0}
+      - EGL_PLATFORM=surfaceless
+      - EGL_DRIVER=swrast
+      # Option 2: Or use llvmpipe for better performance
+      - GALLIUM_DRIVER=llvmpipe
       - FASTRTPS_DEFAULT_PROFILES_FILE=/home/${USERNAME:-rosuser}/.ros/fastdds.xml
 
     volumes:
