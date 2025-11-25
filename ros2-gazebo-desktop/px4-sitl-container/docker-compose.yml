@@ -32,6 +32,7 @@ services:
       # EXTERNAL_GAZEBO=1 : Connect to Gazebo in ROS2 container (recommended)
       # EXTERNAL_GAZEBO=0 : Run Gazebo inside this container (headless)
       - EXTERNAL_GAZEBO=${EXTERNAL_GAZEBO:-1}
+      - PX4_GZ_STANDALONE=1
       - HEADLESS=${HEADLESS:-1}
       - WAIT_FOR_GAZEBO=${WAIT_FOR_GAZEBO:-0}
       
