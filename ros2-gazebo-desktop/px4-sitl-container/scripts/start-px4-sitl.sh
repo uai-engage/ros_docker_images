@@ -82,26 +82,30 @@ if [ "${EXTERNAL_GAZEBO:-0}" = "1" ]; then
         echo "Gazebo detected!"
     fi
 
-    # Always wait for vehicle model to be spawned (prevents sensor bridge issues)
-    echo "Checking if vehicle will be spawned by Gazebo..."
-    MAX_WAIT=30
-    WAITED=0
-    while [ $WAITED -lt $MAX_WAIT ]; do
-        if gz topic -l 2>/dev/null | grep -q "/world/.*/model/${PX4_GZ_MODEL:-x500}"; then
-            echo "✓ Vehicle model topics detected in Gazebo"
-            sleep 2  # Extra delay for sensor initialization
-            break
-        fi
-        if [ $WAITED -eq 0 ]; then
-            echo "Waiting for vehicle ${PX4_GZ_MODEL:-x500} to spawn in Gazebo..."
-        fi
-        sleep 1
-        WAITED=$((WAITED + 1))
-    done
+    # Check if vehicle is already spawned (optional, for manual spawn workflows)
+    if [ "${WAIT_FOR_VEHICLE:-0}" = "1" ]; then
+        echo "Checking if vehicle is already spawned in Gazebo..."
+        MAX_WAIT=30
+        WAITED=0
+        while [ $WAITED -lt $MAX_WAIT ]; do
+            if gz topic -l 2>/dev/null | grep -q "/world/.*/model/${PX4_GZ_MODEL:-x500}"; then
+                echo "✓ Vehicle model topics detected in Gazebo"
+                sleep 2  # Extra delay for sensor initialization
+                break
+            fi
+            if [ $WAITED -eq 0 ]; then
+                echo "Waiting for vehicle ${PX4_GZ_MODEL:-x500} to spawn in Gazebo..."
+            fi
+            sleep 1
+            WAITED=$((WAITED + 1))
+        done
 
-    if [ $WAITED -ge $MAX_WAIT ]; then
-        echo "⚠️  Warning: Vehicle not detected in Gazebo after ${MAX_WAIT}s"
-        echo "   PX4 will start anyway and spawn the vehicle"
+        if [ $WAITED -ge $MAX_WAIT ]; then
+            echo "⚠️  Warning: Vehicle not detected in Gazebo after ${MAX_WAIT}s"
+            echo "   PX4 will spawn the vehicle automatically"
+        fi
+    else
+        echo "PX4 will spawn the vehicle automatically in Gazebo"
     fi
 else
     echo ""
