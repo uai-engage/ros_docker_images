@@ -13,10 +13,6 @@ services:
     image: ros2-gazebo-desktop:jazzy-vnc-px4
     container_name: ${CONTAINER_NAME:-ros2_dev_station}
 
-    # Load environment variables from .env or .env.vnc
-    env_file:
-      - .env
-
     stdin_open: true
     tty: true
 
@@ -81,7 +77,15 @@ services:
     command: /startup-vnc.sh
 
 # Usage:
+# ======
+#
+# Build:
 #   docker compose -f docker-compose-simple.yml build
+#
+# Start with explicit env file (recommended):
+#   docker compose -f docker-compose-simple.yml --env-file .env up -d
+#
+# Or use default values (no env file):
 #   docker compose -f docker-compose-simple.yml up -d
 #
 # Access VNC: http://localhost:6080/vnc.html
