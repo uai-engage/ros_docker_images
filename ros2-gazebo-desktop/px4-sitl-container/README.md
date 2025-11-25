@@ -57,7 +57,17 @@ cp .env.example .env
 nano .env
 ```
 
-### 3. Build Container
+### 3. Open Firewall Ports (ONE-TIME SETUP)
+
+**Run this ONCE** - firewall rules persist across reboots:
+
+```bash
+./open-firewall-ports.sh
+```
+
+This opens ports for MAVLink communication (TCP 5760, UDP 14550, UDP 14540).
+
+### 4. Build Container
 
 ```bash
 docker compose build
@@ -65,13 +75,13 @@ docker compose build
 
 This takes ~15-20 minutes on first build.
 
-### 4. Start PX4 SITL
+### 5. Start PX4 SITL
 
 ```bash
-docker compose up -d
+docker compose --env-file .env.example up -d
 ```
 
-### 5. View Logs
+### 6. View Logs
 
 ```bash
 docker compose logs -f
@@ -138,22 +148,63 @@ ros2 topic echo /fmu/out/vehicle_status
 
 ## Connecting QGroundControl (Windows)
 
-1. **Open QGroundControl** on your Windows machine
+### **ONE-TIME SETUP: Open Firewall Ports** ⚠️
 
-2. **Auto-discovery**: QGC should automatically discover the vehicle on UDP 14550
+**Run this ONCE on your server** (firewall rules persist across reboots):
 
-3. **Manual Connection** (if auto-discovery fails):
-   - Go to: Application Settings → Comm Links
-   - Add new link:
-     - Type: UDP
-     - Port: 14550
-     - Server Address: `<Ubuntu-host-IP>`
-   - Connect
+```bash
+cd px4-sitl-container
+./open-firewall-ports.sh
+```
 
-4. **Verify Connection**:
-   - Vehicle should appear in QGC
-   - Telemetry data should be streaming
-   - Map should show vehicle position
+This opens:
+- TCP 5760 (MAVLink TCP - recommended for remote connections)
+- UDP 14550 (MAVLink UDP broadcast)
+- UDP 14540 (MAVLink UDP offboard)
+
+---
+
+### Method 1: TCP Connection (Recommended for Remote Servers)
+
+**On Windows (QGroundControl):**
+
+1. Open **QGroundControl**
+2. Go to: **Application Settings** → **Comm Links**
+3. Click **"Add"**
+4. Configure:
+   - **Name**: `PX4 Server`
+   - **Type**: **TCP**
+   - **Server Address**: `<your-server-ip>` (e.g., `10.200.10.66`)
+   - **Port**: `5760`
+5. Click **"OK"** and **"Connect"**
+
+✅ **Advantages**: More reliable, works over WAN/remote connections, no broadcast needed
+
+---
+
+### Method 2: UDP Broadcast (Local Network Only)
+
+**Auto-discovery**:
+- QGC should automatically discover the vehicle on UDP 14550 if on the same local network
+
+**Manual UDP Connection** (if auto-discovery fails):
+1. Go to: **Application Settings** → **Comm Links**
+2. Add new link:
+   - **Type**: UDP
+   - **Port**: 14550
+   - **Server Address**: `<server-ip>`
+3. Click **"Connect"**
+
+---
+
+### Verify Connection
+
+Once connected, you should see:
+- ✅ Vehicle appears in QGC
+- ✅ Telemetry data streaming
+- ✅ Map shows vehicle position
+- ✅ Artificial horizon updates
+- ✅ Ability to arm/disarm
 
 ---
 

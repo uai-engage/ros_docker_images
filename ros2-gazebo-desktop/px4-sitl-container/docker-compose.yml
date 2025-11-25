@@ -1,6 +1,11 @@
 # PX4 SITL Docker Compose
 # Run PX4 SITL with Gazebo Harmonic in a container
 # Communicates with ROS 2 container via host network
+#
+# ⚠️  ONE-TIME SETUP REQUIRED:
+# Before connecting QGroundControl from a remote machine, run ONCE:
+#   ./open-firewall-ports.sh
+# (Firewall rules persist across reboots, only needs to be done once)
 
 services:
   px4-sitl:
