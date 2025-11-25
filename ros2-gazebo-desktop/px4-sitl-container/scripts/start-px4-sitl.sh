@@ -91,4 +91,20 @@ echo "============================================"
 echo ""
 
 # Run PX4 SITL
-exec make px4_sitl gz_${PX4_GZ_MODEL:-x500}
+if [ "${EXTERNAL_GAZEBO:-0}" = "1" ]; then
+    # External Gazebo: Don't start Gazebo, just run PX4 and connect
+    echo "Connecting to external Gazebo..."
+    echo "Model: ${PX4_GZ_MODEL:-x500}"
+    echo "GZ_PARTITION: ${GZ_PARTITION:-gazebo}"
+    echo ""
+
+    # Tell PX4 that Gazebo is already running (standalone mode)
+    export PX4_GZ_STANDALONE=1
+
+    # Run PX4 SITL without starting Gazebo
+    exec make px4_sitl gz_${PX4_GZ_MODEL:-x500}
+else
+    # Embedded Gazebo: Start both PX4 and Gazebo together
+    echo "Starting PX4 with embedded Gazebo..."
+    exec make px4_sitl gz_${PX4_GZ_MODEL:-x500}
+fi
