@@ -1,0 +1,144 @@
+# Ubuntu Desktop Container for Native ROS 2 + Gazebo + PX4
+# Single container with everything installed natively inside
+
+services:
+  ubuntu-desktop:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      args:
+        USERNAME: ${USERNAME:-developer}
+        USER_UID: ${USER_UID:-1000}
+        USER_GID: ${USER_GID:-1000}
+    image: ubuntu-desktop-ros2-px4:24.04
+    container_name: ${CONTAINER_NAME:-ubuntu_desktop_dev}
+
+    hostname: ubuntu-desktop
+
+    # Privileged mode for GPU access (optional, disable if not needed)
+    # privileged: true
+
+    # Network mode: host for direct access (easier for QGroundControl)
+    network_mode: host
+
+    # Alternative: Use bridge mode with port mapping
+    # ports:
+    #   - "5901:5901"    # VNC
+    #   - "6901:6901"    # noVNC
+    #   - "14550:14550/udp"  # MAVLink UDP
+    #   - "5760:5760/tcp"    # MAVLink TCP
+
+    volumes:
+      # Persistent workspace (survives container restarts)
+      - ${WORKSPACE_PATH:-./workspace}:/home/${USERNAME:-developer}/px4_workspace:rw
+
+      # X11 socket (for GUI applications if not using VNC)
+      # - /tmp/.X11-unix:/tmp/.X11-unix:ro
+
+      # Shared memory for Gazebo
+      - /dev/shm:/dev/shm
+
+      # GPU devices (NVIDIA)
+      # - /dev/dri:/dev/dri
+
+    environment:
+      # Display (for X11 forwarding, alternative to VNC)
+      - DISPLAY=${DISPLAY:-:1}
+
+      # VNC password (default: password)
+      - VNC_PASSWORD=${VNC_PASSWORD:-password}
+
+      # NVIDIA GPU support (uncomment if using NVIDIA)
+      # - NVIDIA_VISIBLE_DEVICES=all
+      # - NVIDIA_DRIVER_CAPABILITIES=all
+
+    # GPU support (NVIDIA)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          memory: ${MEMORY_LIMIT:-16G}
+          cpus: '${CPU_LIMIT:-8}'
+        reservations:
+          memory: ${MEMORY_RESERVATION:-8G}
+
+    # Shared memory size (important for Gazebo)
+    shm_size: '4gb'
+    ipc: host
+
+    stdin_open: true
+    tty: true
+
+    # Restart policy
+    restart: unless-stopped
+
+# ========================================
+# Usage:
+# ========================================
+#
+# 1. Build the container:
+#    docker compose build
+#
+# 2. Start the container:
+#    docker compose up -d
+#
+# 3. Access desktop:
+#    Browser: http://localhost:6901/vnc.html
+#    VNC Client: localhost:5901 (password: password)
+#
+# 4. Install ROS 2 + Gazebo + PX4 inside container:
+#    Open terminal in VNC desktop
+#    cd ~/installation-scripts
+#    ./01-install-ros2-jazzy.sh
+#    ./02-install-gazebo-harmonic.sh
+#    ./03-install-px4-deps.sh
+#    ./04-setup-px4.sh
+#    ./05-install-microros.sh
+#
+#    Or run automated installation:
+#    ~/install-all.sh
+#
+# 5. After installation, use normally:
+#    Terminal 1: gz-default
+#    Terminal 2: px4-sitl
+#    Terminal 3: microros
+#
+# 6. Connect QGroundControl:
+#    TCP: localhost:5760 (from host machine)
+#    UDP: localhost:14550
+#
+# 7. Stop container (keeps data):
+#    docker compose stop
+#
+# 8. Restart container:
+#    docker compose start
+#
+# 9. Remove container (WARNING: loses data not in workspace):
+#    docker compose down
+#
+# ========================================
+# Persistence:
+# ========================================
+#
+# The workspace directory (./workspace) is mounted as a volume.
+# This means:
+#   - ~/px4_workspace inside container maps to ./workspace on host
+#   - Data persists across container restarts
+#   - You can backup ./workspace directory
+#
+# Everything else (ROS 2, Gazebo installations in /opt) is inside
+# the container and will be preserved as long as you don't remove
+# the container with 'docker compose down'.
+#
+# To preserve everything permanently, commit the container:
+#   docker commit ubuntu_desktop_dev ubuntu-desktop-ros2-px4:configured
+#
+# ========================================
