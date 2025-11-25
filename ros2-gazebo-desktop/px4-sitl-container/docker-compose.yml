@@ -45,10 +45,11 @@ services:
       - UXRCE_DDS_PRT=${UXRCE_DDS_PRT:-8888}
 
     volumes:
-      # Option 1: Mount your local PX4-Autopilot source (recommended for development)
-      # Uncomment this and comment out Option 2 if you have local source
+      # REQUIRED: Mount your local PX4-Autopilot source
+      # Clone it first with: git clone --recursive https://github.com/PX4/PX4-Autopilot.git -b v1.16.0
+      # The --recursive flag is CRITICAL to download all submodules (heatshrink, etc.)
       - ${PX4_SOURCE_PATH:-./PX4-Autopilot}:/home/${USERNAME:-px4user}/PX4-Autopilot:rw
-      
+
       # Shared memory for Gazebo
       - /dev/shm:/dev/shm
 
@@ -84,13 +85,14 @@ services:
 # Usage:
 # ======
 #
-# 1. Clone PX4-Autopilot to this directory (or set PX4_SOURCE_PATH):
+# 1. IMPORTANT: Clone PX4-Autopilot with submodules to this directory:
 #    git clone --recursive https://github.com/PX4/PX4-Autopilot.git -b v1.16.0
+#    The --recursive flag is REQUIRED to download submodules!
 #
 # 2. Build the container:
 #    docker compose build
 #
-# 3. Start PX4 SITL:
+# 3. Start PX4 SITL (will build PX4 on first startup):
 #    docker compose up -d
 #
 # 4. View logs:

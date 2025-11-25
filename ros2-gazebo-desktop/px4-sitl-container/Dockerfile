@@ -109,16 +109,9 @@ RUN pip3 install --break-system-packages --no-cache-dir \
 USER $USERNAME
 WORKDIR /home/$USERNAME
 
-# Clone PX4-Autopilot (will be overwritten if volume mounted)
-# This provides a default if no volume is mounted
-RUN git clone --recursive https://github.com/PX4/PX4-Autopilot.git -b ${PX4_VERSION} --depth 1 \
-    && cd PX4-Autopilot \
-    && git submodule update --init --recursive
-
-# Build PX4 SITL with Gazebo Harmonic
-# This pre-builds to speed up first run (will rebuild if source is mounted)
-RUN cd PX4-Autopilot \
-    && make px4_sitl
+# NOTE: PX4-Autopilot is expected to be mounted from host via volume
+# Clone it on your host with: git clone --recursive https://github.com/PX4/PX4-Autopilot.git -b v1.16.0
+# The build will happen at container startup (see start-px4-sitl.sh)
 
 # Set up environment
 RUN echo "# PX4 Environment" >> ~/.bashrc \
