@@ -28,6 +28,18 @@ echo "============================================"
 echo "  Automated ROS 2 + Gazebo + PX4 Installation"
 echo "============================================"
 echo ""
+
+# Check if running as root (via sudo)
+if [ "$EUID" -eq 0 ] && [ -n "$SUDO_USER" ]; then
+    echo "❌ ERROR: Do NOT run this script with sudo!"
+    echo ""
+    echo "Run it as a regular user:"
+    echo "  ./install-all.sh"
+    echo ""
+    echo "The script will ask for sudo password when needed."
+    exit 1
+fi
+
 echo "This will install:"
 echo "  1. ROS 2 Jazzy (15-20 min)"
 echo "  2. Gazebo Harmonic (10-15 min)"
