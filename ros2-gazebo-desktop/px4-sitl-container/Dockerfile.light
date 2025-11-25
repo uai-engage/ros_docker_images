@@ -150,10 +150,11 @@ ENV GZ_IP=127.0.0.1
 ENV GZ_SIM_RESOURCE_PATH=/home/${USERNAME}/PX4-Autopilot/Tools/simulation/gz/models:/home/${USERNAME}/PX4-Autopilot/Tools/simulation/gz/worlds
 
 # Expose ports
-# 14550: MAVLink (QGC)
-# 14540: MAVLink (MAVROS/offboard)
+# 14550: MAVLink UDP (QGC broadcast)
+# 14540: MAVLink UDP (MAVROS/offboard)
+# 5760: MAVLink TCP (QGC direct connection)
 # 8888: uXRCE-DDS (micro-ROS agent)
-EXPOSE 14550/udp 14540/udp 8888/udp
+EXPOSE 14550/udp 14540/udp 5760/tcp 8888/udp
 
 # Default command
 CMD ["/home/px4user/scripts/start-px4-sitl.sh"]

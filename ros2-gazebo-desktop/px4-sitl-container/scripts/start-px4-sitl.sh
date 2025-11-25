@@ -82,6 +82,7 @@ echo ""
 echo "MAVLink Ports:"
 echo "  UDP 14550 - QGroundControl (broadcast)"
 echo "  UDP 14540 - MAVROS / Offboard control"
+echo "  TCP 5760  - QGroundControl (TCP connection)"
 echo ""
 echo "uXRCE-DDS (for ROS 2):"
 echo "  UDP 8888 - Connect micro-ROS agent to this port"
@@ -89,6 +90,13 @@ echo "  Command: ros2 run micro_ros_agent micro_ros_agent udp4 -p 8888"
 echo ""
 echo "============================================"
 echo ""
+
+# Create PX4 extras file to add TCP MAVLink
+mkdir -p ${PX4_HOME}/build/px4_sitl_default/etc
+cat > ${PX4_HOME}/build/px4_sitl_default/etc/extras.txt << 'EOF'
+# Additional MAVLink TCP connection for remote QGroundControl
+mavlink start -x -o 5760 -r 4000000
+EOF
 
 # Run PX4 SITL
 if [ "${EXTERNAL_GAZEBO:-0}" = "1" ]; then
