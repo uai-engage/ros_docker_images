@@ -71,7 +71,8 @@ echo ""
 echo "Step 5/6: Installing ROS 2 Gazebo packages..."
 sudo apt install -y \
     ros-jazzy-ros-gz \
-    ros-jazzy-ros-gzharmonic \
+    ros-jazzy-ros-gz-sim \
+    ros-jazzy-ros-gz-bridge \
     ros-jazzy-gz-ros2-control
 
 echo ""
