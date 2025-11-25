@@ -129,6 +129,9 @@ RUN echo "Verifying copied files..." \
     && ls -la /home/$USERNAME/*.sh \
     && echo "All scripts copied successfully!"
 
+# Add hostname to /etc/hosts to prevent resolution errors
+RUN echo "127.0.0.1 ubuntu-desktop" >> /etc/hosts
+
 # Expose VNC and noVNC ports
 EXPOSE 5901 6901
 

@@ -4,13 +4,21 @@
 
 set -e
 
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-INSTALL_SCRIPTS_DIR="${SCRIPT_DIR}/installation-scripts"
+# Resolve the real directory of this script (follow symlinks)
+SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SOURCE" ]; do
+    DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+    SOURCE="$(readlink "$SOURCE")"
+    [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+SCRIPT_DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 
 # Check if running in container
 if [ -f "/.dockerenv" ]; then
     IN_CONTAINER=true
     echo "Detected running inside Docker container"
+    # In container, scripts are in home directory
+    INSTALL_SCRIPTS_DIR="$HOME/installation-scripts"
 else
     IN_CONTAINER=false
     INSTALL_SCRIPTS_DIR="${SCRIPT_DIR}/scripts"
@@ -47,9 +55,11 @@ else
     sleep 5
 fi
 
-# Log file
-LOG_FILE="${SCRIPT_DIR}/installation.log"
+# Log file (always in home directory for easy access)
+LOG_FILE="$HOME/installation.log"
 echo "Logging to: $LOG_FILE"
+echo ""
+echo "Scripts directory: $INSTALL_SCRIPTS_DIR"
 echo ""
 
 # Function to run script with logging
@@ -69,15 +79,18 @@ run_script() {
 
         # If in container or auto mode, pipe 'y' to all prompts
         if [ -f "/.dockerenv" ] || [ -n "$AUTO_INSTALL" ]; then
-            yes 'y' | bash "$script" 2>&1 | tee -a "$LOG_FILE"
+            # Create a temporary expect-like wrapper
+            (yes 'y' 2>/dev/null || true) | bash "$script" 2>&1 | tee -a "$LOG_FILE"
+            SCRIPT_EXIT=${PIPESTATUS[1]}  # Get exit code of bash, not yes
         else
             bash "$script" 2>&1 | tee -a "$LOG_FILE"
+            SCRIPT_EXIT=${PIPESTATUS[0]}
         fi
 
-        if [ ${PIPESTATUS[0]} -eq 0 ]; then
+        if [ ${SCRIPT_EXIT} -eq 0 ]; then
             echo "✅ $name completed successfully"
         else
-            echo "❌ $name failed"
+            echo "❌ $name failed with exit code ${SCRIPT_EXIT}"
             echo "Check log: $LOG_FILE"
             exit 1
         fi
@@ -106,14 +119,17 @@ echo "  Configuring Environment"
 echo "========================================"
 echo ""
 
-if [ -f "${SCRIPT_DIR}/configure-environment.sh" ]; then
-    bash "${SCRIPT_DIR}/configure-environment.sh" 2>&1 | tee -a "$LOG_FILE"
+CONFIG_SCRIPT="$HOME/configure-environment.sh"
+if [ -f "$CONFIG_SCRIPT" ]; then
+    bash "$CONFIG_SCRIPT" 2>&1 | tee -a "$LOG_FILE"
+else
+    echo "⚠️  configure-environment.sh not found at $CONFIG_SCRIPT"
 fi
 
 # Source new environment
 if [ -f "$HOME/.bashrc" ]; then
     echo "Sourcing ~/.bashrc..."
-    source "$HOME/.bashrc"
+    source "$HOME/.bashrc" || true
 fi
 
 # Run tests
@@ -123,8 +139,11 @@ echo "  Testing Installation"
 echo "========================================"
 echo ""
 
-if [ -f "${SCRIPT_DIR}/test-installation.sh" ]; then
-    bash "${SCRIPT_DIR}/test-installation.sh" 2>&1 | tee -a "$LOG_FILE"
+TEST_SCRIPT="$HOME/test-installation.sh"
+if [ -f "$TEST_SCRIPT" ]; then
+    bash "$TEST_SCRIPT" 2>&1 | tee -a "$LOG_FILE"
+else
+    echo "⚠️  test-installation.sh not found at $TEST_SCRIPT"
 fi
 
 # Summary
@@ -154,10 +173,12 @@ else
 fi
 echo ""
 echo "See usage guide:"
-if [ "$IN_CONTAINER" = true ]; then
-    echo "  cat ~/installation-docs/USAGE-GUIDE.md"
-else
-    echo "  cat docs/USAGE-GUIDE.md"
-fi
+echo "  cat ~/installation-docs/USAGE-GUIDE.md"
+echo ""
+echo "Quick reference:"
+echo "  cat ~/QUICK-REFERENCE.md"
+echo ""
+echo "Installation log saved at:"
+echo "  $LOG_FILE"
 echo ""
 echo "============================================"
