@@ -81,14 +81,46 @@ USER root
 COPY --chown=$USERNAME:$USERNAME docker/start-desktop.sh /home/$USERNAME/
 RUN chmod +x /home/$USERNAME/start-desktop.sh
 
-# Copy installation scripts
+# Copy ALL installation scripts and supporting files
 COPY --chown=$USERNAME:$USERNAME scripts/ /home/$USERNAME/installation-scripts/
 COPY --chown=$USERNAME:$USERNAME docs/ /home/$USERNAME/installation-docs/
 COPY --chown=$USERNAME:$USERNAME *.sh /home/$USERNAME/
 COPY --chown=$USERNAME:$USERNAME *.md /home/$USERNAME/
+COPY --chown=$USERNAME:$USERNAME CONTAINER-README.md /home/$USERNAME/README-START-HERE.txt
 
+# Make all scripts executable
 RUN chmod +x /home/$USERNAME/installation-scripts/*.sh \
-    && chmod +x /home/$USERNAME/*.sh
+    && chmod +x /home/$USERNAME/*.sh \
+    && find /home/$USERNAME -name "*.sh" -type f -exec chmod +x {} \;
+
+# Create Desktop directory
+RUN mkdir -p /home/$USERNAME/Desktop \
+    && chown $USERNAME:$USERNAME /home/$USERNAME/Desktop
+
+# Create desktop shortcuts as regular files (symlinks work better for scripts)
+RUN ln -s /home/$USERNAME/install-all.sh /home/$USERNAME/Desktop/install-all.sh \
+    && ln -s /home/$USERNAME/README-START-HERE.txt /home/$USERNAME/Desktop/README-START-HERE.txt \
+    && ln -s /home/$USERNAME/installation-scripts /home/$USERNAME/Desktop/installation-scripts \
+    && ln -s /home/$USERNAME/installation-docs /home/$USERNAME/Desktop/docs
+
+# Create a desktop file for automated installation
+RUN echo '[Desktop Entry]' > /home/$USERNAME/Desktop/Install-ROS2-Gazebo-PX4.desktop \
+    && echo 'Version=1.0' >> /home/$USERNAME/Desktop/Install-ROS2-Gazebo-PX4.desktop \
+    && echo 'Type=Application' >> /home/$USERNAME/Desktop/Install-ROS2-Gazebo-PX4.desktop \
+    && echo 'Name=Install ROS 2 + Gazebo + PX4' >> /home/$USERNAME/Desktop/Install-ROS2-Gazebo-PX4.desktop \
+    && echo 'Comment=Automated installation of all components' >> /home/$USERNAME/Desktop/Install-ROS2-Gazebo-PX4.desktop \
+    && echo 'Exec=xfce4-terminal -e "/home/'$USERNAME'/install-all.sh"' >> /home/$USERNAME/Desktop/Install-ROS2-Gazebo-PX4.desktop \
+    && echo 'Icon=system-software-install' >> /home/$USERNAME/Desktop/Install-ROS2-Gazebo-PX4.desktop \
+    && echo 'Terminal=true' >> /home/$USERNAME/Desktop/Install-ROS2-Gazebo-PX4.desktop \
+    && echo 'Categories=Development;' >> /home/$USERNAME/Desktop/Install-ROS2-Gazebo-PX4.desktop \
+    && chmod +x /home/$USERNAME/Desktop/Install-ROS2-Gazebo-PX4.desktop \
+    && chown $USERNAME:$USERNAME /home/$USERNAME/Desktop/Install-ROS2-Gazebo-PX4.desktop
+
+# Verify files are present
+RUN echo "Verifying copied files..." \
+    && ls -la /home/$USERNAME/installation-scripts/ \
+    && ls -la /home/$USERNAME/*.sh \
+    && echo "All scripts copied successfully!"
 
 # Expose VNC and noVNC ports
 EXPOSE 5901 6901
