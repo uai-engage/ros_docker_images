@@ -38,6 +38,7 @@ services:
       # Gazebo Transport (for external Gazebo connection)
       - GZ_PARTITION=${GZ_PARTITION:-gazebo}
       - GZ_IP=${GZ_IP:-127.0.0.1}
+      - GZ_RELAY=1
       - GZ_SIM_RESOURCE_PATH=/home/${USERNAME:-px4user}/PX4-Autopilot/Tools/simulation/gz/models:/home/${USERNAME:-px4user}/PX4-Autopilot/Tools/simulation/gz/worlds
       
       # uXRCE-DDS settings (for ROS 2 communication)

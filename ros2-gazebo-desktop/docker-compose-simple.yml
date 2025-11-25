@@ -25,6 +25,7 @@ services:
       # PX4 Gazebo models/worlds path (mounted from px4-sitl-container)
       - GZ_SIM_RESOURCE_PATH=/home/rosuser/px4_gazebo/models:/home/rosuser/px4_gazebo/worlds
       - GZ_PARTITION=${GZ_PARTITION:-gazebo}
+      - GZ_RELAY=1
       - XDG_RUNTIME_DIR=/tmp/runtime-${USERNAME:-rosuser}
       # Gazebo rendering: ogre works better with software rendering than ogre2
       - GZ_SIM_RENDER_ENGINE_NAME=ogre
