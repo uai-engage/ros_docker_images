@@ -28,16 +28,19 @@ if [ -f "/.dockerenv" ] && [ -d "/home/px4user/PX4-Autopilot/src" ]; then
     fi
 fi
 
-# Create extras.txt BEFORE starting PX4 (must exist before px4 binary reads config)
-# This adds TCP MAVLink for remote QGroundControl
-mkdir -p ${PX4_HOME}/build/px4_sitl_default/etc
-cat > ${PX4_HOME}/build/px4_sitl_default/etc/extras.txt << 'EOF'
-# Additional MAVLink TCP connection for remote QGroundControl
-# -x: external mode, -o: port, -t: bind address (0.0.0.0 = all interfaces), -m: mode, -r: rate
+# Create custom rc.autostart.post for TCP MAVLink
+# This file is sourced by PX4 after autostart completes
+mkdir -p ${PX4_HOME}/build/px4_sitl_default/etc/init.d-posix
+cat > ${PX4_HOME}/build/px4_sitl_default/etc/init.d-posix/rc.autostart.post << 'EOF'
+#!/bin/sh
+# Custom post-autostart commands
+# Start TCP MAVLink for remote QGroundControl
+echo "Starting TCP MAVLink on port 5760..."
 mavlink start -x -o 5760 -t 0.0.0.0 -m onboard -r 4000000
 EOF
 
-echo "Created extras.txt for TCP MAVLink on port 5760"
+chmod +x ${PX4_HOME}/build/px4_sitl_default/etc/init.d-posix/rc.autostart.post
+echo "Created rc.autostart.post for TCP MAVLink on port 5760"
 
 # Configure MAVLink broadcast
 export PX4_SIM_HOST_ADDR=${PX4_SIM_HOST_ADDR:-0.0.0.0}
@@ -151,6 +154,7 @@ if [ "${EXTERNAL_GAZEBO:-0}" = "1" ]; then
     export PX4_GZ_STANDALONE=1
 
     # Run PX4 SITL without starting Gazebo
+    # rc.autostart.post will be executed automatically and start TCP MAVLink
     exec make px4_sitl gz_${PX4_GZ_MODEL:-x500}
 else
     # Embedded Gazebo: Start both PX4 and Gazebo together

@@ -37,8 +37,19 @@ echo "6. Recent PX4 logs (sensor errors)..."
 docker logs px4_sitl 2>&1 | grep -E "(Accel|Gyro|baro|ekf2)" | tail -10
 echo ""
 
-echo "7. Checking extras.txt file..."
-docker exec px4_sitl bash -c "if [ -f /home/px4user/PX4-Autopilot/build/px4_sitl_default/etc/extras.txt ]; then cat /home/px4user/PX4-Autopilot/build/px4_sitl_default/etc/extras.txt; else echo '❌ extras.txt not found'; fi"
+echo "7. Checking custom startup scripts..."
+docker exec px4_sitl bash -c "
+if [ -f /home/px4user/PX4-Autopilot/build/px4_sitl_default/etc/init.d-posix/rc.autostart.post ]; then
+    echo 'rc.autostart.post:'
+    cat /home/px4user/PX4-Autopilot/build/px4_sitl_default/etc/init.d-posix/rc.autostart.post
+else
+    echo '❌ rc.autostart.post not found'
+fi
+"
+echo ""
+
+echo "8. Checking for TCP MAVLink specifically..."
+docker logs px4_sitl 2>&1 | grep -i "tcp.*5760" || echo "❌ No TCP MAVLink on port 5760 found in logs"
 echo ""
 
 echo "=========================================="
