@@ -15,6 +15,15 @@ if ! grep -q "$HOSTNAME" /etc/hosts; then
     echo "127.0.0.1 $HOSTNAME" | sudo tee -a /etc/hosts > /dev/null
 fi
 
+# Fix px4_workspace permissions (mounted volume may be owned by root)
+if [ -d "$HOME/px4_workspace" ]; then
+    WORKSPACE_OWNER=$(stat -c '%U' "$HOME/px4_workspace")
+    if [ "$WORKSPACE_OWNER" != "$(whoami)" ]; then
+        echo "Fixing px4_workspace permissions..."
+        sudo chown -R $(whoami):$(whoami) "$HOME/px4_workspace"
+    fi
+fi
+
 # Start D-Bus
 sudo service dbus start
 
