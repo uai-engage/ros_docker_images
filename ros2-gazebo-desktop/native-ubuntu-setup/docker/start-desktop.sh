@@ -1,23 +1,49 @@
 #!/bin/bash
 # Start VNC and noVNC for Ubuntu Desktop container
 
-set -e
+# Don't exit on errors - we want to continue even if some services fail
+set +e
 
 echo "============================================"
 echo "  Starting Ubuntu Desktop Container"
 echo "============================================"
 echo ""
 
+# Fix hostname resolution
+HOSTNAME=$(hostname)
+if ! grep -q "$HOSTNAME" /etc/hosts; then
+    echo "127.0.0.1 $HOSTNAME" | sudo tee -a /etc/hosts > /dev/null
+fi
+
 # Start D-Bus
 sudo service dbus start
 
+# Clean up any existing VNC sessions
+vncserver -kill :1 2>/dev/null || true
+
 # Start VNC server
 echo "Starting VNC server on :1 (port 5901)..."
-vncserver :1 -geometry 1920x1080 -depth 24 -localhost no
+if vncserver :1 -geometry 1920x1080 -depth 24 -localhost no; then
+    echo "✅ VNC server started successfully"
+else
+    echo "❌ Failed to start VNC server"
+    echo "Checking for errors..."
+    cat ~/.vnc/*.log 2>/dev/null | tail -20 || echo "No VNC logs found"
+    exit 1
+fi
+
+# Wait a moment for VNC to be ready
+sleep 2
 
 # Start noVNC
 echo "Starting noVNC on port 6901..."
 /usr/share/novnc/utils/novnc_proxy --vnc localhost:5901 --listen 6901 &
+
+if [ $? -eq 0 ]; then
+    echo "✅ noVNC started successfully"
+else
+    echo "⚠️  noVNC may have issues, but continuing..."
+fi
 
 echo ""
 echo "============================================"
