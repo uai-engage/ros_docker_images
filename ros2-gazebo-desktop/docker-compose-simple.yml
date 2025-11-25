@@ -26,7 +26,10 @@ services:
       - GZ_SIM_RESOURCE_PATH=/home/rosuser/px4_gazebo/models:/home/rosuser/px4_gazebo/worlds
       - GZ_PARTITION=${GZ_PARTITION:-gazebo}
       - XDG_RUNTIME_DIR=/tmp/runtime-${USERNAME:-rosuser}
-      - LIBGL_ALWAYS_SOFTWARE=1
+      # Gazebo rendering: ogre works better with software rendering than ogre2
+      - GZ_SIM_RENDER_ENGINE_NAME=ogre
+      # Software rendering (can be disabled if hardware acceleration available)
+      - LIBGL_ALWAYS_SOFTWARE=${LIBGL_ALWAYS_SOFTWARE:-1}
       - FASTRTPS_DEFAULT_PROFILES_FILE=/home/${USERNAME:-rosuser}/.ros/fastdds.xml
 
     volumes:

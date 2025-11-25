@@ -170,21 +170,26 @@ Located in `~/px4_gazebo/worlds/`:
 ### Gazebo Command Options
 
 ```bash
-# Basic launch
-gz sim worlds/default.sdf
+# Basic launch (uses ogre renderer by default, set via docker-compose)
+gz sim ~/px4_gazebo/worlds/default.sdf
 
 # With verbose output (recommended for debugging)
-gz sim -v4 worlds/default.sdf
+gz sim -v4 ~/px4_gazebo/worlds/default.sdf
 
 # Run simulation immediately (auto-start)
-gz sim -r worlds/default.sdf
+gz sim -r ~/px4_gazebo/worlds/default.sdf
 
-# Combined: verbose + auto-run
+# Combined: verbose + auto-run (recommended)
 gz sim -v4 -r ~/px4_gazebo/worlds/default.sdf
+
+# Force specific renderer (if you get OpenGL errors)
+GZ_SIM_RENDER_ENGINE_NAME=ogre gz sim -v4 -r ~/px4_gazebo/worlds/default.sdf
 
 # Headless (no GUI, for servers)
 gz sim -s ~/px4_gazebo/worlds/default.sdf
 ```
+
+**Note:** The container is configured to use the `ogre` renderer by default (via `GZ_SIM_RENDER_ENGINE_NAME=ogre`) because it works better with VNC and software rendering. If you have hardware acceleration, you can try `ogre2` for better performance.
 
 **What happens:**
 - Gazebo starts with the selected world
@@ -464,6 +469,31 @@ sudo ufw allow 14550/udp
 # 4. Try manual connection in QGC with host IP
 ```
 
+### Problem: Gazebo segmentation fault (OpenGL/EGL error)
+
+**Symptoms:**
+- "libEGL warning: Not allowed to force software rendering..."
+- Segmentation fault when launching Gazebo
+- Stack trace showing libgallium/Mesa errors
+
+**Solution:**
+```bash
+# Option 1: Use Ogre renderer instead of Ogre2 (recommended for VNC)
+export GZ_SIM_RENDER_ENGINE_NAME=ogre
+gz sim -v4 -r ~/px4_gazebo/worlds/default.sdf
+
+# Option 2: Disable software rendering
+unset LIBGL_ALWAYS_SOFTWARE
+gz sim -v4 -r ~/px4_gazebo/worlds/default.sdf
+
+# Option 3: Permanent fix - set in docker-compose-simple.yml
+# Add to environment:
+- GZ_SIM_RENDER_ENGINE_NAME=ogre
+
+# Then restart container
+docker compose -f docker-compose-simple.yml restart
+```
+
 ### Problem: Gazebo crashes or freezes
 
 **Symptoms:** Gazebo GUI unresponsive, high CPU
@@ -474,10 +504,8 @@ sudo ufw allow 14550/udp
 # Edit docker-compose-simple.yml:
 shm_size: '4gb'  # Increase from 2gb
 
-# Use software rendering (slower but more stable)
-# In container:
-export LIBGL_ALWAYS_SOFTWARE=1
-gz sim -v4 -r ~/px4_gazebo/worlds/default.sdf
+# Restart container
+docker compose -f docker-compose-simple.yml restart
 ```
 
 ### Problem: Container won't start
