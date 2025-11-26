@@ -28,17 +28,37 @@ if [ -f "/.dockerenv" ] && [ -d "/home/px4user/PX4-Autopilot/src" ]; then
     fi
 fi
 
-# Modify PX4's rcS to add TCP MAVLink at the end
-# This ensures it runs after all other initialization
+# Auto-detect Windows host IP if not provided
+if [ -z "$WINDOWS_HOST_IP" ]; then
+    # Try to detect Docker gateway (usually the Windows host)
+    WINDOWS_HOST_IP=$(ip route | grep default | awk '{print $3}')
+    if [ -n "$WINDOWS_HOST_IP" ]; then
+        echo "Auto-detected Windows host IP: $WINDOWS_HOST_IP"
+    else
+        echo "Warning: Could not auto-detect Windows host IP"
+        WINDOWS_HOST_IP="192.168.18.93"  # Fallback default
+        echo "Using fallback IP: $WINDOWS_HOST_IP"
+    fi
+else
+    echo "Using configured Windows host IP: $WINDOWS_HOST_IP"
+fi
+
+# Modify PX4's rcS to add MAVLink configurations
+# This ensures they run after all other initialization
 if [ -f "${PX4_HOME}/build/px4_sitl_default/etc/init.d/rcS" ]; then
     # Check if we haven't already modified it
-    if ! grep -q "TCP MAVLink 5760" "${PX4_HOME}/build/px4_sitl_default/etc/init.d/rcS"; then
+    if ! grep -q "Custom MAVLink configuration" "${PX4_HOME}/build/px4_sitl_default/etc/init.d/rcS"; then
         echo "" >> "${PX4_HOME}/build/px4_sitl_default/etc/init.d/rcS"
-        echo "# TCP MAVLink 5760 for remote QGroundControl (added by start-px4-sitl.sh)" >> "${PX4_HOME}/build/px4_sitl_default/etc/init.d/rcS"
+        echo "# Custom MAVLink configuration (added by start-px4-sitl.sh)" >> "${PX4_HOME}/build/px4_sitl_default/etc/init.d/rcS"
+        echo "# UDP MAVLink for QGroundControl on Windows host" >> "${PX4_HOME}/build/px4_sitl_default/etc/init.d/rcS"
+        echo "mavlink start -x -u 14550 -t $WINDOWS_HOST_IP -r 4000000" >> "${PX4_HOME}/build/px4_sitl_default/etc/init.d/rcS"
+        echo "# TCP MAVLink for remote QGroundControl" >> "${PX4_HOME}/build/px4_sitl_default/etc/init.d/rcS"
         echo "mavlink start -x -o 5760 -t 0.0.0.0 -m onboard -r 4000000" >> "${PX4_HOME}/build/px4_sitl_default/etc/init.d/rcS"
-        echo "Modified rcS to add TCP MAVLink on port 5760"
+        echo "Modified rcS to add MAVLink configurations"
+        echo "  - UDP 14550 → $WINDOWS_HOST_IP (QGroundControl)"
+        echo "  - TCP 5760  → 0.0.0.0 (Remote QGC)"
     else
-        echo "rcS already contains TCP MAVLink configuration"
+        echo "rcS already contains custom MAVLink configuration"
     fi
 else
     echo "Warning: rcS not found, will be created on first PX4 build"
@@ -132,14 +152,19 @@ echo ""
 echo "Starting PX4 SITL..."
 echo "============================================"
 echo ""
-echo "MAVLink Ports:"
-echo "  UDP 14550 - QGroundControl (broadcast)"
-echo "  UDP 14540 - MAVROS / Offboard control"
+echo "MAVLink Configuration:"
+echo "  UDP 14550 → $WINDOWS_HOST_IP (QGroundControl on Windows)"
+echo "  UDP 14540 - MAVROS / Offboard control (default)"
 echo "  TCP 5760  - QGroundControl (TCP connection)"
 echo ""
 echo "uXRCE-DDS (for ROS 2):"
 echo "  UDP 8888 - Connect micro-ROS agent to this port"
 echo "  Command: ros2 run micro_ros_agent micro_ros_agent udp4 -p 8888"
+echo ""
+echo "QGroundControl Setup (Windows):"
+echo "  1. Start QGroundControl on Windows host"
+echo "  2. It should auto-connect via UDP 14550"
+echo "  3. If not, manually add UDP connection to port 14550"
 echo ""
 echo "============================================"
 echo ""

@@ -32,6 +32,7 @@ services:
       - PX4_SYS_AUTOSTART=${PX4_SYS_AUTOSTART:-4001}
       - PX4_SIM_INSTANCE=${PX4_SIM_INSTANCE:-0}
       - PX4_SIM_HOST_ADDR=${PX4_SIM_HOST_ADDR:-0.0.0.0}
+      - WINDOWS_HOST_IP=${WINDOWS_HOST_IP:-}
       
       # Gazebo Mode
       # EXTERNAL_GAZEBO=1 : Connect to Gazebo in ROS2 container (recommended)
