@@ -1,0 +1,182 @@
+# Multi-Vehicle PX4 SITL Docker Compose
+# Runs multiple PX4 instances, each connecting to the same Gazebo
+#
+# Usage:
+#   docker compose -f docker-compose-multi.yml up -d
+#   docker compose -f docker-compose-multi.yml up -d --scale px4-sitl-1=0  # Start only vehicle 0
+#
+# Each instance:
+#   - Connects to Gazebo in ROS2 container
+#   - Spawns its own vehicle (x500_0, x500_1, x500_2, ...)
+#   - Uses offset ports (14550+instance, 8888+instance)
+
+x-px4-common: &px4-common
+  build:
+    context: .
+    dockerfile: ${DOCKERFILE:-Dockerfile.light}
+    args:
+      USERNAME: ${USERNAME:-px4user}
+      USER_UID: ${USER_UID:-1000}
+      USER_GID: ${USER_GID:-1000}
+      PX4_VERSION: ${PX4_VERSION:-v1.16.0}
+  stdin_open: true
+  tty: true
+  volumes:
+    - ${PX4_SOURCE_PATH:-./PX4-Autopilot}:/home/${USERNAME:-px4user}/PX4-Autopilot:rw
+    - /dev/shm:/dev/shm
+  network_mode: host
+  shm_size: '2gb'
+  ipc: host
+  deploy:
+    resources:
+      limits:
+        memory: ${MEMORY_LIMIT:-8G}
+      reservations:
+        memory: ${MEMORY_RESERVATION:-4G}
+  working_dir: /home/${USERNAME:-px4user}/PX4-Autopilot
+
+services:
+  # ==========================================
+  # Vehicle 0 (Primary)
+  # ==========================================
+  px4-sitl-0:
+    <<: *px4-common
+    image: px4-sitl:${PX4_VERSION:-v1.16.0}-instance-0
+    container_name: px4_sitl_0
+    environment:
+      - PX4_GZ_MODEL=${PX4_GZ_MODEL:-x500}
+      - PX4_GZ_WORLD=${PX4_GZ_WORLD:-default}
+      - PX4_SYS_AUTOSTART=${PX4_SYS_AUTOSTART:-4001}
+      - PX4_SIM_INSTANCE=0
+      - PX4_SIM_HOST_ADDR=${PX4_SIM_HOST_ADDR:-0.0.0.0}
+      - EXTERNAL_GAZEBO=1
+      - PX4_GZ_STANDALONE=1
+      - HEADLESS=1
+      - GZ_PARTITION=${GZ_PARTITION:-gazebo}
+      - GZ_IP=${GZ_IP:-127.0.0.1}
+      - GZ_RELAY=1
+      - UXRCE_DDS_AG_IP=${UXRCE_DDS_AG_IP:-127.0.0.1}
+      - UXRCE_DDS_PRT=8888
+      - WINDOWS_HOST_IP=${WINDOWS_HOST_IP:-}
+      - MAVLINK_UDP_PORT=14550
+    command: /home/${USERNAME:-px4user}/scripts/start-px4-sitl.sh
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "px4"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ==========================================
+  # Vehicle 1
+  # ==========================================
+  px4-sitl-1:
+    <<: *px4-common
+    image: px4-sitl:${PX4_VERSION:-v1.16.0}-instance-1
+    container_name: px4_sitl_1
+    environment:
+      - PX4_GZ_MODEL=${PX4_GZ_MODEL:-x500}
+      - PX4_GZ_WORLD=${PX4_GZ_WORLD:-default}
+      - PX4_SYS_AUTOSTART=${PX4_SYS_AUTOSTART:-4001}
+      - PX4_SIM_INSTANCE=1
+      - PX4_SIM_HOST_ADDR=${PX4_SIM_HOST_ADDR:-0.0.0.0}
+      - EXTERNAL_GAZEBO=1
+      - PX4_GZ_STANDALONE=1
+      - HEADLESS=1
+      - GZ_PARTITION=${GZ_PARTITION:-gazebo}
+      - GZ_IP=${GZ_IP:-127.0.0.1}
+      - GZ_RELAY=1
+      - UXRCE_DDS_AG_IP=${UXRCE_DDS_AG_IP:-127.0.0.1}
+      - UXRCE_DDS_PRT=8889
+      - WINDOWS_HOST_IP=${WINDOWS_HOST_IP:-}
+      - MAVLINK_UDP_PORT=14551
+    command: /home/${USERNAME:-px4user}/scripts/start-px4-sitl.sh
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "px4"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    depends_on:
+      px4-sitl-0:
+        condition: service_healthy
+
+  # ==========================================
+  # Vehicle 2
+  # ==========================================
+  px4-sitl-2:
+    <<: *px4-common
+    image: px4-sitl:${PX4_VERSION:-v1.16.0}-instance-2
+    container_name: px4_sitl_2
+    environment:
+      - PX4_GZ_MODEL=${PX4_GZ_MODEL:-x500}
+      - PX4_GZ_WORLD=${PX4_GZ_WORLD:-default}
+      - PX4_SYS_AUTOSTART=${PX4_SYS_AUTOSTART:-4001}
+      - PX4_SIM_INSTANCE=2
+      - PX4_SIM_HOST_ADDR=${PX4_SIM_HOST_ADDR:-0.0.0.0}
+      - EXTERNAL_GAZEBO=1
+      - PX4_GZ_STANDALONE=1
+      - HEADLESS=1
+      - GZ_PARTITION=${GZ_PARTITION:-gazebo}
+      - GZ_IP=${GZ_IP:-127.0.0.1}
+      - GZ_RELAY=1
+      - UXRCE_DDS_AG_IP=${UXRCE_DDS_AG_IP:-127.0.0.1}
+      - UXRCE_DDS_PRT=8890
+      - WINDOWS_HOST_IP=${WINDOWS_HOST_IP:-}
+      - MAVLINK_UDP_PORT=14552
+    command: /home/${USERNAME:-px4user}/scripts/start-px4-sitl.sh
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "px4"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    depends_on:
+      px4-sitl-1:
+        condition: service_healthy
+
+# ==========================================
+# Usage Instructions:
+# ==========================================
+#
+# 1. Start all vehicles:
+#    docker compose -f docker-compose-multi.yml up -d
+#
+# 2. Start only specific vehicles:
+#    docker compose -f docker-compose-multi.yml up -d px4-sitl-0 px4-sitl-1
+#
+# 3. View logs for all:
+#    docker compose -f docker-compose-multi.yml logs -f
+#
+# 4. View logs for specific vehicle:
+#    docker compose -f docker-compose-multi.yml logs -f px4-sitl-0
+#
+# 5. Stop all:
+#    docker compose -f docker-compose-multi.yml down
+#
+# Port Reference:
+# ===============
+#   Vehicle 0: MAVLink 14550, uXRCE-DDS 8888, Model x500_0
+#   Vehicle 1: MAVLink 14551, uXRCE-DDS 8889, Model x500_1
+#   Vehicle 2: MAVLink 14552, uXRCE-DDS 8890, Model x500_2
+#
+# QGroundControl:
+# ===============
+#   Add multiple UDP connections:
+#   - Vehicle 0: UDP port 14550
+#   - Vehicle 1: UDP port 14551
+#   - Vehicle 2: UDP port 14552
+#
+# ROS 2 (micro-ROS Agent):
+# ========================
+#   Run multiple agents in ROS2 container:
+#   ros2 run micro_ros_agent micro_ros_agent udp4 -p 8888 &
+#   ros2 run micro_ros_agent micro_ros_agent udp4 -p 8889 &
+#   ros2 run micro_ros_agent micro_ros_agent udp4 -p 8890 &
+#
+# Gazebo:
+# =======
+#   All vehicles spawn in the same Gazebo world with different names:
+#   - x500_0 at origin
+#   - x500_1 offset by 2m in Y
+#   - x500_2 offset by 4m in Y
