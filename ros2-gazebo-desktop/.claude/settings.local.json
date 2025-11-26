@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Bash(chmod:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(git rm:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []

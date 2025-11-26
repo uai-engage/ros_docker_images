@@ -87,6 +87,17 @@ The multi-vehicle simulation system allows you to run multiple PX4 SITL instance
 
 ---
 
+## Prerequisites
+
+Before running multi-vehicle simulation, ensure:
+
+1. **PX4-Autopilot cloned** in `px4-sitl-container/PX4-Autopilot/`
+2. **Gazebo world file patched** with sensor plugins - see [GAZEBO-WORLD-SETUP.md](GAZEBO-WORLD-SETUP.md)
+3. **ROS2 container built** and running
+4. **PX4 SITL container built**
+
+---
+
 ## Quick Start
 
 ### 1. Generate Docker Compose File
@@ -103,15 +114,19 @@ cd px4-sitl-container
 
 ### 2. Start Gazebo (in ROS2 Container)
 
+> **IMPORTANT**: You must use a world file with sensor plugins. See [GAZEBO-WORLD-SETUP.md](GAZEBO-WORLD-SETUP.md) for details.
+
 ```bash
 # Start ROS2 container
 cd ../ros2-gazebo-desktop
 docker compose up -d
 
-# Access VNC and start Gazebo
+# Access VNC and start Gazebo with sensor plugins
 # Browser: http://localhost:6901/vnc.html
-gz sim -r default.sdf
+gz sim -r ~/px4_gazebo/worlds/default_with_plugins.sdf
 ```
+
+**Note**: Using `default.sdf` without plugins will result in "Preflight Fail: Sensor missing" errors. Always use `default_with_plugins.sdf` for external Gazebo setups.
 
 ### 3. Start micro-ROS Agents
 
