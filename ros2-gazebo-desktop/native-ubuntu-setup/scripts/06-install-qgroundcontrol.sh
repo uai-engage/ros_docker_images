@@ -34,14 +34,23 @@ sudo apt install -y \
     libfuse2 \
     fuse \
     wget \
+    curl \
     desktop-file-utils
 
 echo ""
-echo "Step 2/5: Downloading QGroundControl AppImage..."
-echo "   (This may take a few minutes...)"
+echo "Step 2/5: Finding latest QGroundControl release..."
 
-# Download latest QGroundControl AppImage
-QGC_URL="https://d176tv9ibo4jno.cloudfront.net/latest/QGroundControl.AppImage"
+# Get latest release URL from GitHub
+LATEST_RELEASE_URL=$(curl -s https://api.github.com/repos/mavlink/qgroundcontrol/releases/latest | grep "browser_download_url.*AppImage" | grep -v "md5" | cut -d '"' -f 4)
+
+if [ -z "$LATEST_RELEASE_URL" ]; then
+    echo "❌ Could not find latest release"
+    echo "   Falling back to stable version 4.4.0..."
+    LATEST_RELEASE_URL="https://github.com/mavlink/qgroundcontrol/releases/download/v4.4.0/QGroundControl.AppImage"
+fi
+
+echo "   Download URL: $LATEST_RELEASE_URL"
+
 QGC_PATH="$APPS_DIR/QGroundControl.AppImage"
 
 if [ -f "$QGC_PATH" ]; then
@@ -50,11 +59,20 @@ if [ -f "$QGC_PATH" ]; then
     echo
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
         echo "Skipping download"
+        QGC_EXISTS=true
     else
-        wget -O "$QGC_PATH" "$QGC_URL"
+        echo ""
+        echo "Downloading QGroundControl AppImage..."
+        echo "   (This may take a few minutes...)"
+        wget --show-progress -O "$QGC_PATH" "$LATEST_RELEASE_URL"
+        QGC_EXISTS=false
     fi
 else
-    wget -O "$QGC_PATH" "$QGC_URL"
+    echo ""
+    echo "Downloading QGroundControl AppImage..."
+    echo "   (This may take a few minutes...)"
+    wget --show-progress -O "$QGC_PATH" "$LATEST_RELEASE_URL"
+    QGC_EXISTS=false
 fi
 
 echo ""
