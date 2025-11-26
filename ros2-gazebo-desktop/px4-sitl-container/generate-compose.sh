@@ -15,19 +15,33 @@ set -e
 COPTERS=0
 VTOLS=0
 PLANES=0
+ROVERS=0
+BOATS=0
 OUTPUT_FILE="docker-compose-generated.yml"
 WINDOWS_HOST_IP=""
 
 # Vehicle configurations
+# Models available in PX4 v1.16.0 with Gazebo Harmonic
 declare -A VEHICLE_MODELS
-VEHICLE_MODELS[copter]="x500"
-VEHICLE_MODELS[vtol]="standard_vtol"
-VEHICLE_MODELS[plane]="rc_cessna"
+VEHICLE_MODELS[copter]="x500"           # Standard quadcopter
+VEHICLE_MODELS[vtol]="standard_vtol"    # Standard VTOL (quad + fixed wing)
+VEHICLE_MODELS[plane]="rc_cessna"       # Fixed-wing RC plane
+VEHICLE_MODELS[rover]="r1_rover"        # Differential drive rover
+VEHICLE_MODELS[boat]="boat"             # Surface vessel / boat
 
 declare -A VEHICLE_AUTOSTART
-VEHICLE_AUTOSTART[copter]="4001"
-VEHICLE_AUTOSTART[vtol]="13000"
-VEHICLE_AUTOSTART[plane]="2106"
+VEHICLE_AUTOSTART[copter]="4001"        # Generic Quadcopter
+VEHICLE_AUTOSTART[vtol]="13000"         # Generic Standard VTOL
+VEHICLE_AUTOSTART[plane]="2106"         # Generic Fixed Wing
+VEHICLE_AUTOSTART[rover]="50000"        # Generic Rover (Ackermann)
+VEHICLE_AUTOSTART[boat]="60000"         # Boat (Surface Vessel)
+
+declare -A VEHICLE_DESCRIPTION
+VEHICLE_DESCRIPTION[copter]="Quadcopter (x500)"
+VEHICLE_DESCRIPTION[vtol]="VTOL (standard_vtol)"
+VEHICLE_DESCRIPTION[plane]="Fixed-wing Plane (rc_cessna)"
+VEHICLE_DESCRIPTION[rover]="Ground Rover (r1_rover)"
+VEHICLE_DESCRIPTION[boat]="Boat / Surface Vessel"
 
 # Colors for output
 RED='\033[0;31m'
@@ -47,20 +61,45 @@ print_header() {
 print_usage() {
     echo "Usage: $0 [OPTIONS]"
     echo ""
-    echo "Options:"
+    echo "Vehicle Options:"
     echo "  --copters N       Number of quadcopters (x500)"
     echo "  --vtols N         Number of VTOLs (standard_vtol)"
     echo "  --planes N        Number of fixed-wing planes (rc_cessna)"
+    echo "  --rovers N        Number of ground rovers (r1_rover)"
+    echo "  --boats N         Number of boats/surface vessels"
+    echo ""
+    echo "Configuration Options:"
     echo "  --output FILE     Output file (default: docker-compose-generated.yml)"
     echo "  --host-ip IP      Windows host IP for QGroundControl"
     echo "  --interactive     Interactive mode (prompts for input)"
+    echo "  --list-models     List all available vehicle models"
     echo "  --help            Show this help"
     echo ""
     echo "Examples:"
-    echo "  $0 --copters 2                      # 2 quadcopters"
-    echo "  $0 --copters 2 --vtols 1            # 2 copters + 1 VTOL"
+    echo "  $0 --copters 2                        # 2 quadcopters"
+    echo "  $0 --copters 2 --vtols 1              # 2 copters + 1 VTOL"
+    echo "  $0 --copters 2 --rovers 1             # 2 copters + 1 rover"
+    echo "  $0 --copters 1 --planes 1 --rovers 1  # Mixed fleet"
     echo "  $0 --copters 3 --host-ip 192.168.1.100"
-    echo "  $0 --interactive                    # Prompted input"
+    echo "  $0 --interactive                      # Prompted input"
+    echo ""
+}
+
+list_models() {
+    echo ""
+    echo "Available Vehicle Models:"
+    echo "========================="
+    echo ""
+    echo "  Type      Model           Autostart   Description"
+    echo "  ----      -----           ---------   -----------"
+    echo "  copter    x500            4001        Standard quadcopter"
+    echo "  vtol      standard_vtol   13000       Quad + fixed wing VTOL"
+    echo "  plane     rc_cessna       2106        Fixed-wing RC plane"
+    echo "  rover     r1_rover        50000       Differential drive rover"
+    echo "  boat      boat            60000       Surface vessel / boat"
+    echo ""
+    echo "Note: Model availability depends on your PX4-Autopilot version"
+    echo "      and Gazebo model files."
     echo ""
 }
 
@@ -69,22 +108,36 @@ interactive_mode() {
 
     echo "How many vehicles of each type?"
     echo ""
+    echo "Air Vehicles:"
+    echo "-------------"
 
-    read -p "Number of Quadcopters (x500) [0]: " input
+    read -p "  Quadcopters (x500) [0]: " input
     COPTERS=${input:-0}
 
-    read -p "Number of VTOLs (standard_vtol) [0]: " input
+    read -p "  VTOLs (standard_vtol) [0]: " input
     VTOLS=${input:-0}
 
-    read -p "Number of Fixed-wing Planes (rc_cessna) [0]: " input
+    read -p "  Fixed-wing Planes (rc_cessna) [0]: " input
     PLANES=${input:-0}
 
     echo ""
-    read -p "Windows Host IP (leave blank for auto-detect): " input
-    WINDOWS_HOST_IP=${input:-}
+    echo "Ground/Water Vehicles:"
+    echo "----------------------"
+
+    read -p "  Ground Rovers (r1_rover) [0]: " input
+    ROVERS=${input:-0}
+
+    read -p "  Boats/Surface Vessels [0]: " input
+    BOATS=${input:-0}
 
     echo ""
-    read -p "Output file [docker-compose-generated.yml]: " input
+    echo "Configuration:"
+    echo "--------------"
+
+    read -p "  Windows Host IP (leave blank for auto-detect): " input
+    WINDOWS_HOST_IP=${input:-}
+
+    read -p "  Output file [docker-compose-generated.yml]: " input
     OUTPUT_FILE=${input:-docker-compose-generated.yml}
 }
 
@@ -104,6 +157,14 @@ while [[ $# -gt 0 ]]; do
             PLANES="$2"
             shift 2
             ;;
+        --rovers)
+            ROVERS="$2"
+            shift 2
+            ;;
+        --boats)
+            BOATS="$2"
+            shift 2
+            ;;
         --output)
             OUTPUT_FILE="$2"
             shift 2
@@ -115,6 +176,10 @@ while [[ $# -gt 0 ]]; do
         --interactive)
             INTERACTIVE=true
             shift
+            ;;
+        --list-models)
+            list_models
+            exit 0
             ;;
         --help)
             print_usage
@@ -129,11 +194,11 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Interactive mode if no arguments or --interactive flag
-if [ $INTERACTIVE = true ] || [ $((COPTERS + VTOLS + PLANES)) -eq 0 ]; then
+if [ $INTERACTIVE = true ] || [ $((COPTERS + VTOLS + PLANES + ROVERS + BOATS)) -eq 0 ]; then
     interactive_mode
 fi
 
-TOTAL_VEHICLES=$((COPTERS + VTOLS + PLANES))
+TOTAL_VEHICLES=$((COPTERS + VTOLS + PLANES + ROVERS + BOATS))
 
 if [ $TOTAL_VEHICLES -eq 0 ]; then
     echo -e "${RED}Error: At least one vehicle is required!${NC}"
@@ -142,10 +207,17 @@ fi
 
 echo ""
 echo -e "${GREEN}Generating Docker Compose for:${NC}"
-echo "  - Quadcopters: $COPTERS"
-echo "  - VTOLs:       $VTOLS"
-echo "  - Planes:      $PLANES"
-echo "  - Total:       $TOTAL_VEHICLES vehicles"
+echo ""
+echo "  Air Vehicles:"
+echo "    - Quadcopters: $COPTERS"
+echo "    - VTOLs:       $VTOLS"
+echo "    - Planes:      $PLANES"
+echo ""
+echo "  Ground/Water:"
+echo "    - Rovers:      $ROVERS"
+echo "    - Boats:       $BOATS"
+echo ""
+echo "  Total:           $TOTAL_VEHICLES vehicles"
 echo ""
 
 # Start generating the compose file
@@ -270,6 +342,16 @@ for i in $(seq 0 $((PLANES - 1))); do
     add_vehicle "plane" $i
 done
 
+# Generate rover services
+for i in $(seq 0 $((ROVERS - 1))); do
+    add_vehicle "rover" $i
+done
+
+# Generate boat services
+for i in $(seq 0 $((BOATS - 1))); do
+    add_vehicle "boat" $i
+done
+
 # Add usage comments at the end
 cat >> "$OUTPUT_FILE" << EOF
 # ==========================================
@@ -280,24 +362,49 @@ EOF
 
 # Reset instance counter for summary
 INSTANCE=0
+
+# Air vehicles
+if [ $COPTERS -gt 0 ] || [ $VTOLS -gt 0 ] || [ $PLANES -gt 0 ]; then
+    echo "#   Air Vehicles:" >> "$OUTPUT_FILE"
+fi
+
 for i in $(seq 0 $((COPTERS - 1))); do
     MAVLINK_PORT=$((14550 + INSTANCE))
     UXRCE_PORT=$((8888 + INSTANCE))
-    echo "#   Copter $i:  MAVLink ${MAVLINK_PORT}, DDS ${UXRCE_PORT}, Model x500_${INSTANCE}" >> "$OUTPUT_FILE"
+    echo "#     Copter $i:  MAVLink ${MAVLINK_PORT}, DDS ${UXRCE_PORT}, Model x500_${INSTANCE}" >> "$OUTPUT_FILE"
     INSTANCE=$((INSTANCE + 1))
 done
 
 for i in $(seq 0 $((VTOLS - 1))); do
     MAVLINK_PORT=$((14550 + INSTANCE))
     UXRCE_PORT=$((8888 + INSTANCE))
-    echo "#   VTOL $i:    MAVLink ${MAVLINK_PORT}, DDS ${UXRCE_PORT}, Model standard_vtol_${INSTANCE}" >> "$OUTPUT_FILE"
+    echo "#     VTOL $i:    MAVLink ${MAVLINK_PORT}, DDS ${UXRCE_PORT}, Model standard_vtol_${INSTANCE}" >> "$OUTPUT_FILE"
     INSTANCE=$((INSTANCE + 1))
 done
 
 for i in $(seq 0 $((PLANES - 1))); do
     MAVLINK_PORT=$((14550 + INSTANCE))
     UXRCE_PORT=$((8888 + INSTANCE))
-    echo "#   Plane $i:   MAVLink ${MAVLINK_PORT}, DDS ${UXRCE_PORT}, Model rc_cessna_${INSTANCE}" >> "$OUTPUT_FILE"
+    echo "#     Plane $i:   MAVLink ${MAVLINK_PORT}, DDS ${UXRCE_PORT}, Model rc_cessna_${INSTANCE}" >> "$OUTPUT_FILE"
+    INSTANCE=$((INSTANCE + 1))
+done
+
+# Ground/Water vehicles
+if [ $ROVERS -gt 0 ] || [ $BOATS -gt 0 ]; then
+    echo "#   Ground/Water Vehicles:" >> "$OUTPUT_FILE"
+fi
+
+for i in $(seq 0 $((ROVERS - 1))); do
+    MAVLINK_PORT=$((14550 + INSTANCE))
+    UXRCE_PORT=$((8888 + INSTANCE))
+    echo "#     Rover $i:   MAVLink ${MAVLINK_PORT}, DDS ${UXRCE_PORT}, Model r1_rover_${INSTANCE}" >> "$OUTPUT_FILE"
+    INSTANCE=$((INSTANCE + 1))
+done
+
+for i in $(seq 0 $((BOATS - 1))); do
+    MAVLINK_PORT=$((14550 + INSTANCE))
+    UXRCE_PORT=$((8888 + INSTANCE))
+    echo "#     Boat $i:    MAVLink ${MAVLINK_PORT}, DDS ${UXRCE_PORT}, Model boat_${INSTANCE}" >> "$OUTPUT_FILE"
     INSTANCE=$((INSTANCE + 1))
 done
 
