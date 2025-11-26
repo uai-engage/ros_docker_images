@@ -76,8 +76,33 @@ else
 fi
 
 echo ""
-echo "Step 3/5: Making AppImage executable..."
+echo "Step 3/5: Extracting AppImage (FUSE not available in Docker)..."
 chmod +x "$QGC_PATH"
+
+# Extract AppImage since FUSE is not available in containers
+cd "$APPS_DIR"
+if [ -d "QGroundControl" ]; then
+    echo "   Removing old extracted version..."
+    rm -rf QGroundControl
+fi
+
+echo "   Extracting AppImage contents..."
+"$QGC_PATH" --appimage-extract > /dev/null 2>&1
+mv squashfs-root QGroundControl
+
+# Create wrapper script
+QGC_WRAPPER="$APPS_DIR/qgroundcontrol"
+cat > "$QGC_WRAPPER" << 'WRAPPER_EOF'
+#!/bin/bash
+cd ~/Applications/QGroundControl
+./AppRun "$@"
+WRAPPER_EOF
+chmod +x "$QGC_WRAPPER"
+
+echo "   ✅ AppImage extracted to $APPS_DIR/QGroundControl"
+
+# Keep the original AppImage for reference
+echo "   Original AppImage kept at: $QGC_PATH"
 
 echo ""
 echo "Step 4/5: Creating desktop shortcut..."
@@ -92,7 +117,7 @@ Version=1.0
 Type=Application
 Name=QGroundControl
 Comment=Ground Control Station for PX4 and ArduPilot
-Exec=@@APPIMAGE_PATH@@
+Exec=@@WRAPPER_PATH@@
 Icon=qgroundcontrol
 Terminal=false
 Categories=Development;Science;
@@ -100,25 +125,24 @@ StartupNotify=true
 EOF
 
 # Replace placeholder with actual path
-sed -i "s|@@APPIMAGE_PATH@@|$QGC_PATH|g" "$DESKTOP_FILE"
+sed -i "s|@@WRAPPER_PATH@@|$QGC_WRAPPER|g" "$DESKTOP_FILE"
 
 # Also create desktop shortcut
 DESKTOP_SHORTCUT="$HOME/Desktop/QGroundControl.desktop"
 cp "$DESKTOP_FILE" "$DESKTOP_SHORTCUT"
 chmod +x "$DESKTOP_SHORTCUT"
 
-# Extract icon from AppImage (if possible)
+# Copy icon from extracted directory
 echo ""
-echo "Step 5/5: Extracting icon..."
-cd "$APPS_DIR"
-if "$QGC_PATH" --appimage-extract usr/share/icons/hicolor/128x128/apps/qgroundcontrol.png 2>/dev/null; then
+echo "Step 5/5: Setting up icon..."
+ICON_SOURCE="$APPS_DIR/QGroundControl/usr/share/icons/hicolor/128x128/apps/qgroundcontrol.png"
+if [ -f "$ICON_SOURCE" ]; then
     ICON_DIR="$HOME/.local/share/icons/hicolor/128x128/apps"
     mkdir -p "$ICON_DIR"
-    mv squashfs-root/usr/share/icons/hicolor/128x128/apps/qgroundcontrol.png "$ICON_DIR/" || true
-    rm -rf squashfs-root
-    echo "   ✅ Icon extracted"
+    cp "$ICON_SOURCE" "$ICON_DIR/"
+    echo "   ✅ Icon installed"
 else
-    echo "   ⚠️  Could not extract icon (will use default)"
+    echo "   ⚠️  Icon not found (will use default)"
 fi
 
 echo ""
@@ -127,13 +151,18 @@ echo "  ✅ QGroundControl Installation Complete!"
 echo "==========================================="
 echo ""
 echo "Installed at:"
-echo "  $QGC_PATH"
+echo "  $APPS_DIR/QGroundControl/ (extracted)"
+echo "  $QGC_PATH (original AppImage)"
 echo ""
 echo "To launch QGroundControl:"
 echo "  1. Double-click desktop icon"
 echo "  2. Search in applications menu"
 echo "  3. Run from terminal:"
-echo "     $QGC_PATH"
+echo "     qgroundcontrol"
+echo "     (or: $QGC_WRAPPER)"
+echo ""
+echo "Note: AppImage extracted because FUSE is not available"
+echo "      in Docker containers. This is normal and working."
 echo ""
 echo "Connection settings for Docker container:"
 echo "  - UDP: Auto-connect on port 14550 (default)"
