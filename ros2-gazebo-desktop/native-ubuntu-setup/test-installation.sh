@@ -14,8 +14,11 @@ ERRORS=0
 # Test ROS 2
 echo "1. Testing ROS 2 Jazzy..."
 if command -v ros2 &> /dev/null; then
-    ROS_VERSION=$(ros2 --version 2>&1)
-    echo "   ✅ $ROS_VERSION"
+    if [ -n "$ROS_DISTRO" ]; then
+        echo "   ✅ ROS 2 $ROS_DISTRO"
+    else
+        echo "   ✅ ROS 2 installed (run 'source ~/.bashrc' if ROS_DISTRO not set)"
+    fi
 else
     echo "   ❌ ROS 2 not found in PATH"
     ERRORS=$((ERRORS + 1))
@@ -25,7 +28,7 @@ echo ""
 # Test Gazebo
 echo "2. Testing Gazebo Harmonic..."
 if command -v gz &> /dev/null; then
-    GZ_VERSION=$(gz sim --version 2>&1 | head -1)
+    GZ_VERSION=$(timeout 5 gz sim --versions 2>&1 | grep -i "gazebo" | head -1 || echo "Gazebo Harmonic")
     echo "   ✅ $GZ_VERSION"
 else
     echo "   ❌ Gazebo not found in PATH"
