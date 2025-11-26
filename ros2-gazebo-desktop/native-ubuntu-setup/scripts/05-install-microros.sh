@@ -10,6 +10,7 @@ echo "==========================================="
 echo ""
 echo "This will:"
 echo "  - Create ~/px4_workspace/micro_ros_ws"
+echo "  - Clone micro_ros_msgs (Jazzy branch)"
 echo "  - Clone micro-ROS agent (Jazzy branch)"
 echo "  - Build with colcon"
 echo ""
@@ -48,18 +49,26 @@ if [ -d "src/micro-ROS-Agent" ]; then
     fi
 fi
 
+if [ ! -d "src/micro_ros_msgs" ]; then
+    echo ""
+    echo "Step 2/4: Cloning micro_ros_msgs (Jazzy branch)..."
+    cd src
+    git clone https://github.com/micro-ROS/micro_ros_msgs.git -b jazzy
+    cd ..
+fi
+
 if [ ! -d "src/micro-ROS-Agent" ]; then
     echo ""
-    echo "Step 2/3: Cloning micro-ROS-Agent (Jazzy branch)..."
+    echo "Step 3/4: Cloning micro-ROS-Agent (Jazzy branch)..."
     cd src
     git clone https://github.com/micro-ROS/micro-ROS-Agent.git -b jazzy
     cd ..
 fi
 
 echo ""
-echo "Step 3/3: Building micro-ROS agent..."
+echo "Step 4/4: Building micro-ROS workspace..."
 echo "   (This may take 3-5 minutes...)"
-colcon build --cmake-args -DUAGENT_BUILD_EXECUTABLE=OFF
+colcon build
 
 echo ""
 echo "==========================================="
